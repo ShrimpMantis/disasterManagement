@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
-  Database,
   HandHeart,
   LayoutDashboard,
   MapPinned,
@@ -97,11 +96,7 @@ const navItems: NavItem[] = [
     label: "User profile",
     icon: UserRound,
   },
-  {
-    href: "/admin/seed",
-    label: "Seed data console",
-    icon: Database,
-  },
+  // Seed console is kept at /admin/seed but hidden from nav for all users.
 ];
 
 export function AppSidebar() {
