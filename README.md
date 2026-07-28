@@ -66,6 +66,28 @@ Secrets are bound in `apphosting.yaml` as `FIREBASE_ADMIN_CLIENT_EMAIL` and `FIR
 
 3. Optional client keys for Maps / admin emails can be added later under `env:` in `apphosting.yaml` (or as additional secrets).
 
+### GitHub Actions CI/CD
+
+Workflow: `.github/workflows/deploy.yml`
+
+- **Pull requests → `main`**: `npm ci`, `npm run lint`, `npm run build`
+- **Push → `main`**: same checks, then `firebase deploy --only apphosting:reliefnet`
+
+Add these under **GitHub → Settings → Secrets and variables → Actions**:
+
+| Secret | Purpose |
+|--------|---------|
+| `FIREBASE_SERVICE_ACCOUNT` | Full JSON key for a GCP SA with App Hosting / Firebase deploy permissions |
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Client Firebase config (build-time) |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Client Firebase config |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Client Firebase config + deploy `--project` |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Client Firebase config |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Client Firebase config |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | Client Firebase config |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Maps (optional for build; required if Maps code runs at build) |
+
+To avoid **double deploys**, turn off App Hosting automatic rollouts in the Firebase console and let this workflow deploy only after CI passes.
+
 ## Auth notes
 
 - Auth is handled client-side with the Firebase JS SDK.

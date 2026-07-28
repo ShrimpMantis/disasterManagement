@@ -83,14 +83,16 @@ function mapSeededPledgeDoc(raw: SeededPledgeDoc): NGOPledgeSubmission {
   };
 }
 
-function isPortalPledgeDoc(raw: Record<string, unknown>): raw is NGOPledgeSubmission {
+function isPortalPledgeDoc(raw: unknown): raw is NGOPledgeSubmission {
+  if (!raw || typeof raw !== "object") return false;
+  const doc = raw as Record<string, unknown>;
   return (
-    typeof raw.id === "string" &&
-    typeof raw.ngoId === "string" &&
-    typeof raw.ngoName === "string" &&
-    typeof raw.createdAt === "string" &&
-    typeof raw.adminApprovalStatus === "string" &&
-    typeof raw.status === "string"
+    typeof doc.id === "string" &&
+    typeof doc.ngoId === "string" &&
+    typeof doc.ngoName === "string" &&
+    typeof doc.createdAt === "string" &&
+    typeof doc.adminApprovalStatus === "string" &&
+    typeof doc.status === "string"
   );
 }
 
@@ -154,7 +156,7 @@ export async function fetchNgoPortalSnapshot(): Promise<
     const pledges = pledgeSnap.docs.map((doc) => {
       const raw = doc.data() as Record<string, unknown>;
       return isPortalPledgeDoc(raw)
-        ? (raw as NGOPledgeSubmission)
+        ? raw
         : mapSeededPledgeDoc(raw as SeededPledgeDoc);
     });
     const tickets = ticketSnap.docs

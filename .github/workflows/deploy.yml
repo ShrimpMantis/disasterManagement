@@ -1,0 +1,99 @@
+# CI/CD: validate on PRs; deploy App Hosting after successful checks on main.
+# Requires GitHub Actions secrets (see README → GitHub Actions secrets).
+#
+# Note: This app uses Firebase App Hosting (SSR), not classic Firebase Hosting.
+# Disable App Hosting "automatic rollouts" in the Firebase console if you want
+# this workflow to be the only deploy path (avoids double rollouts on push).
+name: CI/CD Pipeline - Build & Deploy to Firebase
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------
+  # JOB 1: LINT, TYPECHECK, AND BUILD VERIFICATION
+  # ---------------------------------------------------------------
+  build_and_test:
+    name: Validate Application Build
+    runs-on: ubuntu-latest
+
+    env:
+      NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+      NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (v22)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Next.js Typecheck & Build Test
+        run: npm run build
+
+  # ---------------------------------------------------------------
+  # JOB 2: DEPLOYMENT TO FIREBASE APP HOSTING
+  # ---------------------------------------------------------------
+  deploy_to_firebase:
+    name: Deploy to Firebase App Hosting
+    needs: build_and_test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (v22)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies & Firebase CLI
+        run: |
+          npm ci
+          npm install -g firebase-tools
+
+      - name: Authenticate with Firebase service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "Missing FIREBASE_SERVICE_ACCOUNT secret."
+            exit 1
+          fi
+          echo "$FIREBASE_SERVICE_ACCOUNT" > "${RUNNER_TEMP}/firebase-sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=${RUNNER_TEMP}/firebase-sa.json" >> "$GITHUB_ENV"
+
+      - name: Deploy App Hosting backend
+        env:
+          PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+        run: |
+          firebase deploy \
+            --only apphosting:reliefnet \
+            --project "${PROJECT_ID:-disastermgmt-ccf14}" \
+            --non-interactive
