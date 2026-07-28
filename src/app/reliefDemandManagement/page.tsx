@@ -1,0 +1,32 @@
+"use client";
+
+import { AppShell } from "@/components/layout/AppShell";
+import { VillageReliefGrid } from "@/components/villages/VillageReliefGrid";
+
+function ReliefDemandContent() {
+  return (
+    <main className="relative mx-auto flex min-h-screen w-full max-w-[1400px] flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
+      <header className="animate-rise border-b border-[var(--line)] pb-6">
+        <p className="text-sm uppercase tracking-[0.18em] text-[var(--ink-muted)]">
+          Operations
+        </p>
+        <h1 className="mt-1 font-[family-name:var(--font-fraunces)] text-3xl tracking-tight text-[var(--ink)] sm:text-4xl">
+          Relief demand management
+        </h1>
+        <p className="mt-2 text-sm text-[var(--ink-muted)]">
+          Review village needs, filter assessments, and exchange Excel data.
+        </p>
+      </header>
+
+      <VillageReliefGrid />
+    </main>
+  );
+}
+
+export default function ReliefDemandManagementPage() {
+  return (
+    <AppShell>
+      <ReliefDemandContent />
+    </AppShell>
+  );
+}

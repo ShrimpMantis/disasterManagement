@@ -1,0 +1,216 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isPendingCreate() {
+      return request.resource.data.verificationStatus == 'PENDING_VERIFICATION';
+    }
+
+    // ---- Registration onboarding ----
+    match /volunteerRegistrations/{volunteerId} {
+      allow read: if isSignedIn();
+      allow create: if isPendingCreate()
+        && request.resource.data.keys().hasAll([
+          'volunteerId',
+          'fullName',
+          'phone',
+          'homeDistrict',
+          'isAffiliatedWithNgo',
+          'skills',
+          'verificationStatus',
+          'createdAtTimestamp'
+        ]);
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['verificationStatus', 'reviewedAtTimestamp', 'reviewNote']);
+      allow delete: if false;
+    }
+
+    match /ngoRegistrations/{ngoId} {
+      allow read: if isSignedIn();
+      allow create: if isPendingCreate()
+        && request.resource.data.keys().hasAll([
+          'ngoId',
+          'organizationLegalName',
+          'registrationNumber',
+          'primaryDistrictOfOperation',
+          'fieldPocName',
+          'fieldPocPhone',
+          'coreCapabilities',
+          'verificationStatus',
+          'createdAtTimestamp'
+        ]);
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['verificationStatus', 'reviewedAtTimestamp', 'reviewNote']);
+      allow delete: if false;
+    }
+
+    match /citizenGroupRegistrations/{groupId} {
+      allow read: if isSignedIn();
+      allow create: if isPendingCreate()
+        && request.resource.data.keys().hasAll([
+          'groupId',
+          'groupName',
+          'groupType',
+          'district',
+          'revenueCircle',
+          'primaryVillageTown',
+          'leadName',
+          'leadPhone',
+          'capabilities',
+          'verificationStatus',
+          'createdTimestamp'
+        ]);
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['verificationStatus', 'reviewedAtTimestamp', 'reviewNote', 'verifiedByUserId']);
+      allow delete: if false;
+    }
+
+    // Directory of operational NGOs (read for affiliation autocomplete)
+    match /ngos/{ngoId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // ---- District-scoped ticket queues ----
+    // /districts/{districtId}/tickets/{ticketId}
+    match /districts/{districtId} {
+      allow read: if isSignedIn();
+
+      match /tickets/{ticketId} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn()
+          && request.resource.data.keys().hasAll([
+            'id',
+            'district',
+            'districtId',
+            'status',
+            'priority',
+            'villageId',
+            'createdAt',
+            'updatedAt'
+          ]);
+        allow delete: if false;
+      }
+
+      match /warehouses/{warehouseId} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn()
+          && request.resource.data.keys().hasAll([
+            'warehouseId',
+            'warehouseName',
+            'facilityType',
+            'district',
+            'districtId',
+            'totalCapacityTons',
+            'currentStockTons',
+            'capacityStatus'
+          ]);
+        allow delete: if false;
+      }
+
+      match /villages/{villageId} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn()
+          && request.resource.data.keys().hasAll([
+            'villageName',
+            'revenueCircle',
+            'district',
+            'serviceStatus',
+            'demands'
+          ]);
+        allow delete: if false;
+      }
+    }
+
+    // ---- Transport dispatch chat ----
+    // /chats/{requestId}/messages/{messageId}
+    match /chats/{requestId} {
+      allow read: if isSignedIn();
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn()
+          && request.resource.data.keys().hasAll([
+            'messageId',
+            'requestId',
+            'senderId',
+            'senderName',
+            'senderRole',
+            'messageText',
+            'timestamp'
+          ]);
+        allow update: if isSignedIn();
+        allow delete: if false;
+      }
+    }
+
+    match /transportRequests/{requestId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    // ---- Map / emergency assets (geohash indexed) ----
+    // /emergencyAssets/{assetId}
+    match /emergencyAssets/{assetId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn()
+        && request.resource.data.keys().hasAll([
+          'assetId',
+          'kind',
+          'title',
+          'lat',
+          'lng',
+          'geohash',
+          'districtId'
+        ]);
+      allow delete: if false;
+    }
+
+    match /sosAlerts/{sosId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn()
+        && request.resource.data.keys().hasAll([
+          'id',
+          'lat',
+          'lng',
+          'geohash',
+          'status',
+          'reportedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    // ---- Cross-dock / direct allocation (Admin SDK primary writer) ----
+    match /ticketFulfillments/{fulfillmentId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    match /transitManifests/{manifestId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    match /inboundConsignments/{shipmentId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    match /consolidatedReliefMetrics/{docId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+    }
+  }
+}

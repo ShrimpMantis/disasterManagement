@@ -1,0 +1,38 @@
+# Validates Next.js compilation on pull requests.
+# Production deploys are handled by Firebase App Hosting (GitHub → main).
+name: Build Check
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify Next.js production build
+        run: npm run build:check
+        env:
+          # Public placeholders so `next build` can evaluate client config at build time
+          NEXT_PUBLIC_FIREBASE_API_KEY: build-check-placeholder
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: disastermgmt-ccf14.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: disastermgmt-ccf14
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: disastermgmt-ccf14.firebasestorage.app
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
+          NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:buildcheck"
