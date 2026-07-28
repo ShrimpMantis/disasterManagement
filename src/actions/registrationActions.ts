@@ -9,6 +9,7 @@ import {
   type ActionResult,
 } from "@/lib/actions/result";
 import { FIRESTORE_COLLECTIONS } from "@/lib/firestore/schema";
+import { toPlainData } from "@/lib/firestore/serialize";
 import type {
   NGORegistration,
   VerificationStatus,
@@ -41,7 +42,7 @@ export async function fetchRegistrationRosterSnapshot(): Promise<
     ]);
 
     const volunteers = volunteerSnap.docs
-      .map((doc) => doc.data() as VolunteerRegistration)
+      .map((doc) => toPlainData(doc.data()) as VolunteerRegistration)
       .filter((entry) => isNonEmptyString(entry.volunteerId))
       .sort(
         (a, b) =>
@@ -49,7 +50,7 @@ export async function fetchRegistrationRosterSnapshot(): Promise<
       );
 
     const ngos = ngoSnap.docs
-      .map((doc) => doc.data() as NGORegistration)
+      .map((doc) => toPlainData(doc.data()) as NGORegistration)
       .filter((entry) => isNonEmptyString(entry.ngoId))
       .sort(
         (a, b) =>
@@ -57,7 +58,7 @@ export async function fetchRegistrationRosterSnapshot(): Promise<
       );
 
     const citizenGroups = groupSnap.docs
-      .map((doc) => doc.data() as CitizenGroup)
+      .map((doc) => toPlainData(doc.data()) as CitizenGroup)
       .filter((entry) => isNonEmptyString(entry.groupId))
       .sort(
         (a, b) =>
