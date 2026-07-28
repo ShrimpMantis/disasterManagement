@@ -96,4 +96,5 @@ jobs:
           firebase deploy \
             --only apphosting:reliefnet \
             --project "${PROJECT_ID:-disastermgmt-ccf14}" \
-            --non-interactive
+            --non-interactive \
+            --force
