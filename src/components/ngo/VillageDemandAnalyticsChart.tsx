@@ -153,8 +153,6 @@ export function VillageDemandAnalyticsChart({
             {analytics.selectedDistrict
               ? "Pending vs delivered item needs by village. Click a village bar to open dispatch."
               : "Click a district to drill into village-level item demands linked to relief assessment."}
-            {" · "}
-            Data source: {analytics.source}
           </p>
         </div>
         {analytics.selectedDistrict ? (

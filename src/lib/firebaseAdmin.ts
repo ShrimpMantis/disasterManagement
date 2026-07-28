@@ -10,8 +10,11 @@ import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
 function firstEnv(...names: string[]): string {
   for (const name of names) {
-    const value = process.env[name]?.trim();
-    if (value) return value;
+    const value = process.env[name];
+    if (value == null) continue;
+    // Don't trim private keys — PEM formatting can matter; trim other values.
+    const normalized = name.includes("PRIVATE_KEY") ? value : value.trim();
+    if (normalized) return normalized;
   }
   throw new Error(
     `Missing Firebase Admin credentials. Set one of: ${names.join(", ")} (see .env.local.example).`,

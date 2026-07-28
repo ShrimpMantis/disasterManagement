@@ -88,9 +88,7 @@ export function TicketOperationsConsole() {
             Relief demand & ticket operations
           </h2>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
-            {queue.dataSource === "firestore"
-              ? `Showing ${queue.tickets.length} Firestore-backed tickets across districts.`
-              : `Ingested ${queue.rawRequests.length} raw channel requests → clustered into ${queue.tickets.length} consolidated tickets.`}
+            {`Showing ${queue.tickets.length} tickets across districts.`}
           </p>
         </div>
 

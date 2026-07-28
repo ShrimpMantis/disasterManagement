@@ -128,7 +128,7 @@ export function ReliefFulfillmentDonutTile() {
           </h2>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
             Fulfilled vs in-transit vs pending demand · {summary.scopeLabel}
-            {loading ? " · updating…" : ""} · {summary.source}
+            {loading ? " · updating…" : ""}
           </p>
         </div>
 

@@ -111,13 +111,6 @@ export function WarehouseModule() {
           onSelectWarehouse={state.selectWarehouse}
         />
       )}
-
-      <p className="text-xs text-[var(--ink-muted)]">
-        Data source: Firestore · path{" "}
-        <code className="rounded bg-white/70 px-1">
-          districts/&#123;districtId&#125;/warehouses/&#123;warehouseId&#125;
-        </code>
-      </p>
     </div>
   );
 }
