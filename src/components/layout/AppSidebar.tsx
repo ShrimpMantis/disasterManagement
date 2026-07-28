@@ -136,9 +136,12 @@ export function AppSidebar() {
   );
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === "true") setCollapsed(true);
-    setReady(true);
+    const timer = window.setTimeout(() => {
+      const stored = window.localStorage.getItem(STORAGE_KEY);
+      if (stored === "true") setCollapsed(true);
+      setReady(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   function toggleCollapsed() {

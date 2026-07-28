@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { PackageCheck, Plus, Trash2, X, Zap } from "lucide-react";
 import {
   findMatchingTicketItem,
@@ -23,6 +23,52 @@ type DirectAllocateModalProps = {
   onSubmit: (plans: TicketAllocationPlan[]) => void;
 };
 
+function buildInitialTicketId(
+  eligibleTickets: ReliefTicket[],
+  preselectTicketId?: string | null,
+): string {
+  if (
+    preselectTicketId &&
+    eligibleTickets.some((ticket) => ticket.id === preselectTicketId)
+  ) {
+    return preselectTicketId;
+  }
+  return eligibleTickets[0]?.id ?? "";
+}
+
+function buildInitialQuantities(
+  consignment: InboundConsignment,
+  eligibleTickets: ReliefTicket[],
+  initialTicket: string,
+  preselectQuantity?: number | null,
+): Record<string, string> {
+  const next: Record<string, string> = {};
+  for (const line of consignment.items) {
+    next[line.lineId] = "";
+  }
+  if (initialTicket && preselectQuantity != null) {
+    const ticket = eligibleTickets.find((entry) => entry.id === initialTicket);
+    const primary = consignment.items.find((item) => item.quantityRemaining > 0);
+    if (ticket && primary) {
+      const match = findMatchingTicketItem(
+        ticket,
+        primary.displayName,
+        primary.category,
+      );
+      if (match) {
+        next[primary.lineId] = String(
+          Math.min(
+            preselectQuantity,
+            primary.quantityRemaining,
+            getItemDeficit(match),
+          ),
+        );
+      }
+    }
+  }
+  return next;
+}
+
 export function DirectAllocateModal({
   open,
   consignment,
@@ -32,6 +78,29 @@ export function DirectAllocateModal({
   onClose,
   onSubmit,
 }: DirectAllocateModalProps) {
+  if (!open || !consignment) return null;
+
+  return (
+    <DirectAllocateModalForm
+      key={`${consignment.shipmentId}-${preselectTicketId ?? ""}-${preselectQuantity ?? ""}`}
+      consignment={consignment}
+      tickets={tickets}
+      preselectTicketId={preselectTicketId}
+      preselectQuantity={preselectQuantity}
+      onClose={onClose}
+      onSubmit={onSubmit}
+    />
+  );
+}
+
+function DirectAllocateModalForm({
+  consignment,
+  tickets,
+  preselectTicketId,
+  preselectQuantity,
+  onClose,
+  onSubmit,
+}: Omit<DirectAllocateModalProps, "open"> & { consignment: InboundConsignment }) {
   const eligibleTickets = useMemo(
     () =>
       tickets.filter(
@@ -43,49 +112,23 @@ export function DirectAllocateModal({
     [tickets],
   );
 
-  const [ticketId, setTicketId] = useState("");
-  const [quantities, setQuantities] = useState<Record<string, string>>({});
+  const initialTicketId = buildInitialTicketId(
+    eligibleTickets,
+    preselectTicketId,
+  );
+
+  const [ticketId, setTicketId] = useState(initialTicketId);
+  const [quantities, setQuantities] = useState(() =>
+    buildInitialQuantities(
+      consignment,
+      eligibleTickets,
+      initialTicketId,
+      preselectQuantity,
+    ),
+  );
   const [plans, setPlans] = useState<TicketAllocationPlan[]>([]);
 
-  useEffect(() => {
-    if (!open || !consignment) return;
-    const initialTicket =
-      preselectTicketId &&
-      eligibleTickets.some((ticket) => ticket.id === preselectTicketId)
-        ? preselectTicketId
-        : eligibleTickets[0]?.id ?? "";
-    setTicketId(initialTicket);
-    setPlans([]);
-
-    const next: Record<string, string> = {};
-    for (const line of consignment.items) {
-      next[line.lineId] = "";
-    }
-    if (initialTicket && preselectQuantity != null) {
-      const ticket = eligibleTickets.find((entry) => entry.id === initialTicket);
-      const primary = consignment.items.find((item) => item.quantityRemaining > 0);
-      if (ticket && primary) {
-        const match = findMatchingTicketItem(
-          ticket,
-          primary.displayName,
-          primary.category,
-        );
-        if (match) {
-          next[primary.lineId] = String(
-            Math.min(
-              preselectQuantity,
-              primary.quantityRemaining,
-              getItemDeficit(match),
-            ),
-          );
-        }
-      }
-    }
-    setQuantities(next);
-  }, [open, consignment, eligibleTickets, preselectQuantity, preselectTicketId]);
-
   const remainingByLine = useMemo(() => {
-    if (!consignment) return {} as Record<string, number>;
     const remaining: Record<string, number> = {};
     for (const line of consignment.items) {
       remaining[line.lineId] = line.quantityRemaining;
@@ -101,13 +144,11 @@ export function DirectAllocateModal({
     return remaining;
   }, [consignment, plans]);
 
-  if (!open || !consignment) return null;
-
   const selectedTicket =
     eligibleTickets.find((ticket) => ticket.id === ticketId) ?? null;
 
   function buildCurrentPlan(): TicketAllocationPlan | null {
-    if (!selectedTicket || !consignment) return null;
+    if (!selectedTicket) return null;
     const lines = consignment.items
       .map((line) => {
         const quantity = Number(quantities[line.lineId] ?? 0);
@@ -132,7 +173,7 @@ export function DirectAllocateModal({
       plan,
     ]);
     const cleared: Record<string, string> = {};
-    for (const line of consignment!.items) cleared[line.lineId] = "";
+    for (const line of consignment.items) cleared[line.lineId] = "";
     setQuantities(cleared);
   }
 

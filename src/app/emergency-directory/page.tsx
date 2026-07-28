@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { fetchEmergencyDirectorySnapshot } from "@/actions/emergencyAssetActions";
+import type { EmergencyDirectorySnapshot } from "@/actions/emergencyAssetActions";
 import { AppShell } from "@/components/layout/AppShell";
 import { EmergencyDirectoryModule } from "@/components/emergency/EmergencyDirectoryModule";
 import type { EmergencyDirectoryTab } from "@/types/emergencyDirectory";
@@ -18,7 +19,7 @@ function EmergencyDirectoryContent() {
   const initialDistrict = searchParams.get("district");
   const [flash, setFlash] = useState("");
   const [loading, setLoading] = useState(true);
-  const [snapshot, setSnapshot] = useState({
+  const [snapshot, setSnapshot] = useState<EmergencyDirectorySnapshot>({
     hospitals: [],
     police: [],
     armyCamps: [],

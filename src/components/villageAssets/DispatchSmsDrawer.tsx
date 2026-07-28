@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { MapPin, MessageSquareText, X } from "lucide-react";
 import type { CountryBoatOwner } from "@/types/villageAssets";
 import { BOAT_TYPE_LABELS } from "@/types/villageAssets";
@@ -17,26 +17,35 @@ type DispatchSmsDrawerProps = {
   }) => void;
 };
 
+const DEFAULT_MESSAGE =
+  "EMERGENCY MOBILIZATION: Report with your boat to the destination below. Reply YES to confirm.";
+
 export function DispatchSmsDrawer({
   open,
   boats,
   onClose,
   onSend,
 }: DispatchSmsDrawerProps) {
+  if (!open) return null;
+
+  return (
+    <DispatchSmsDrawerForm
+      key={boats.map((boat) => boat.id).join(",") || "empty"}
+      boats={boats}
+      onClose={onClose}
+      onSend={onSend}
+    />
+  );
+}
+
+function DispatchSmsDrawerForm({
+  boats,
+  onClose,
+  onSend,
+}: Omit<DispatchSmsDrawerProps, "open">) {
   const [destinationLabel, setDestinationLabel] = useState("");
   const [coordinates, setCoordinates] = useState("");
-  const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    if (!open) return;
-    setDestinationLabel("");
-    setCoordinates("");
-    setMessage(
-      "EMERGENCY MOBILIZATION: Report with your boat to the destination below. Reply YES to confirm.",
-    );
-  }, [open]);
-
-  if (!open) return null;
+  const [message, setMessage] = useState(DEFAULT_MESSAGE);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();

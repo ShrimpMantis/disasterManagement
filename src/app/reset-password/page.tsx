@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
+import { FormEvent, Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { AuthField } from "@/components/auth/AuthField";
@@ -17,18 +17,12 @@ function ResetPasswordForm() {
     return searchParams.get("oobCode") || searchParams.get("token") || "";
   }, [searchParams]);
 
-  const [oobCode, setOobCode] = useState("");
+  const [manualOobCode, setManualOobCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (oobCodeFromQuery) {
-      setOobCode(oobCodeFromQuery);
-    }
-  }, [oobCodeFromQuery]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -40,7 +34,7 @@ function ResetPasswordForm() {
       return;
     }
 
-    const code = oobCodeFromQuery || oobCode;
+    const code = oobCodeFromQuery || manualOobCode;
     if (!code) {
       setError("Reset code is missing. Open the link from your email.");
       return;
@@ -71,8 +65,8 @@ function ResetPasswordForm() {
           <AuthField
             label="Reset code (oobCode)"
             name="oobCode"
-            value={oobCode}
-            onChange={(event) => setOobCode(event.target.value)}
+            value={manualOobCode}
+            onChange={(event) => setManualOobCode(event.target.value)}
             required
           />
         ) : null}

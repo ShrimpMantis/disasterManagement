@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AdvancedMarker, Map, Pin } from "@vis.gl/react-google-maps";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { X } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -188,17 +188,16 @@ export function AdminTicketCreationModal({
     },
   });
 
-  const { control, handleSubmit, register, reset, setValue, watch, formState } = form;
+  const { control, handleSubmit, register, reset, setValue, getValues, formState } = form;
   const { fields, append, remove } = useFieldArray({
     control,
     name: "items",
   });
 
-  const districtName = watch("districtName");
-  const revenueCircle = watch("revenueCircle");
-  const selectedVillageId = watch("villageOrShelterId");
-  const coordinates = watch("dropCoordinates");
-  const watchedItems = watch("items");
+  const districtName = useWatch({ control, name: "districtName" });
+  const revenueCircle = useWatch({ control, name: "revenueCircle" });
+  const coordinates = useWatch({ control, name: "dropCoordinates" });
+  const watchedItems = useWatch({ control, name: "items" });
 
   const circles = useMemo(() => {
     if (!districtName) return [];
@@ -486,7 +485,7 @@ export function AdminTicketCreationModal({
                     <span />
                   </div>
                   {fields.map((field, index) => {
-                    const category = watch(`items.${index}.category`);
+                    const category = watchedItems?.[index]?.category ?? "FOOD";
                     const presets = RELIEF_ITEM_PRESETS[category];
                     return (
                       <div
@@ -544,7 +543,8 @@ export function AdminTicketCreationModal({
                           onChange={(event) => {
                             const quantity = Number(event.target.value) || 0;
                             setValue(`items.${index}.quantityRequested`, quantity);
-                            const unitCost = watch(`items.${index}.estimatedUnitCost`) || 0;
+                            const unitCost =
+                              getValues(`items.${index}.estimatedUnitCost`) || 0;
                             setValue(
                               `items.${index}.estimatedTotalCost`,
                               Math.round(quantity * unitCost * 100) / 100,
@@ -556,11 +556,12 @@ export function AdminTicketCreationModal({
                           type="number"
                           min={0}
                           step="0.01"
-                          value={watch(`items.${index}.estimatedUnitCost`) ?? 0}
+                          value={watchedItems?.[index]?.estimatedUnitCost ?? 0}
                           onChange={(event) => {
                             const unitCost = Number(event.target.value) || 0;
                             setValue(`items.${index}.estimatedUnitCost`, unitCost);
-                            const quantity = watch(`items.${index}.quantityRequested`) || 0;
+                            const quantity =
+                              getValues(`items.${index}.quantityRequested`) || 0;
                             setValue(
                               `items.${index}.estimatedTotalCost`,
                               Math.round(quantity * unitCost * 100) / 100,
@@ -570,7 +571,7 @@ export function AdminTicketCreationModal({
                         />
                         <input
                           readOnly
-                          value={(watch(`items.${index}.estimatedTotalCost`) ?? 0).toFixed(2)}
+                          value={(watchedItems?.[index]?.estimatedTotalCost ?? 0).toFixed(2)}
                           className={inputClass}
                         />
                         <button

@@ -157,15 +157,13 @@ export function RegistrationPortal() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!user) return;
-    setFullName((prev) => prev || user.displayName || "");
-    setEmail((prev) => prev || user.email || "");
-    setOrgEmail((prev) => prev || user.email || "");
-    setPhone((prev) => prev || user.phoneNumber || "");
-    setLeadName((prev) => prev || user.displayName || "");
-    setLeadPhone((prev) => prev || user.phoneNumber || "");
-  }, [user]);
+  // Prefer typed values; fall back to Firebase profile without syncing via effect.
+  const displayFullName = fullName || user?.displayName || "";
+  const displayEmail = email || user?.email || "";
+  const displayPhone = phone || user?.phoneNumber || "";
+  const displayOrgEmail = orgEmail || user?.email || "";
+  const displayLeadName = leadName || user?.displayName || "";
+  const displayLeadPhone = leadPhone || user?.phoneNumber || "";
 
   const myRegistration = useMemo(() => {
     if (!hydrated || !user) return null;
@@ -227,7 +225,7 @@ export function RegistrationPortal() {
     }
 
     const parsedAge = Number(age);
-    if (!fullName.trim() || !phone.trim() || !homeDistrict) {
+    if (!displayFullName.trim() || !displayPhone.trim() || !homeDistrict) {
       setError("Name, phone, and home district are required.");
       return;
     }
@@ -274,10 +272,10 @@ export function RegistrationPortal() {
     try {
       const entry = await submitVolunteer({
         uid: user.uid,
-        fullName: fullName.trim(),
-        phone: phone.trim(),
+        fullName: displayFullName.trim(),
+        phone: displayPhone.trim(),
         alternatePhone: alternatePhone.trim() || undefined,
-        email: email.trim() || user.email || undefined,
+        email: displayEmail.trim() || user.email || undefined,
         gender,
         age: parsedAge,
         homeDistrict,
@@ -336,7 +334,7 @@ export function RegistrationPortal() {
       !headPhone.trim() ||
       !pocName.trim() ||
       !pocPhone.trim() ||
-      !orgEmail.trim()
+      !displayOrgEmail.trim()
     ) {
       setError(
         "Organization, registration ID, leadership, and field POC details are required.",
@@ -368,7 +366,7 @@ export function RegistrationPortal() {
         headOfOrgPhone: headPhone.trim(),
         fieldPocName: pocName.trim(),
         fieldPocPhone: pocPhone.trim(),
-        email: orgEmail.trim(),
+        email: displayOrgEmail.trim(),
         coreCapabilities: capabilities,
         activeVolunteerCount: capacity,
         ownedAssetsSummary: assetsSummary.trim() || undefined,
@@ -402,8 +400,8 @@ export function RegistrationPortal() {
       !groupName.trim() ||
       !groupCircle.trim() ||
       !groupVillage.trim() ||
-      !leadName.trim() ||
-      !leadPhone.trim() ||
+      !displayLeadName.trim() ||
+      !displayLeadPhone.trim() ||
       !leadGovtIdNumber.trim()
     ) {
       setError(
@@ -424,8 +422,8 @@ export function RegistrationPortal() {
         district: groupDistrict,
         revenueCircle: groupCircle.trim(),
         primaryVillageTown: groupVillage.trim(),
-        leadName: leadName.trim(),
-        leadPhone: leadPhone.trim(),
+        leadName: displayLeadName.trim(),
+        leadPhone: displayLeadPhone.trim(),
         leadAltPhone: leadAltPhone.trim() || undefined,
         leadGovtIdType,
         leadGovtIdNumber: leadGovtIdNumber.trim(),
@@ -558,7 +556,7 @@ export function RegistrationPortal() {
                 <FieldLabel required>Full name</FieldLabel>
                 <input
                   required
-                  value={fullName}
+                  value={displayFullName}
                   onChange={(event) => setFullName(event.target.value)}
                   className={inputClass}
                 />
@@ -568,7 +566,7 @@ export function RegistrationPortal() {
                 <input
                   required
                   type="tel"
-                  value={phone}
+                  value={displayPhone}
                   onChange={(event) => setPhone(event.target.value)}
                   className={inputClass}
                   placeholder="+91 ..."
@@ -587,7 +585,7 @@ export function RegistrationPortal() {
                 <FieldLabel>Email</FieldLabel>
                 <input
                   type="email"
-                  value={email}
+                  value={displayEmail}
                   onChange={(event) => setEmail(event.target.value)}
                   className={inputClass}
                 />
@@ -926,7 +924,7 @@ export function RegistrationPortal() {
                 <input
                   required
                   type="email"
-                  value={orgEmail}
+                  value={displayOrgEmail}
                   onChange={(event) => setOrgEmail(event.target.value)}
                   className={inputClass}
                 />
@@ -1056,7 +1054,7 @@ export function RegistrationPortal() {
                 <FieldLabel required>Full name</FieldLabel>
                 <input
                   required
-                  value={leadName}
+                  value={displayLeadName}
                   onChange={(event) => setLeadName(event.target.value)}
                   className={inputClass}
                 />
@@ -1066,7 +1064,7 @@ export function RegistrationPortal() {
                 <input
                   required
                   type="tel"
-                  value={leadPhone}
+                  value={displayLeadPhone}
                   onChange={(event) => setLeadPhone(event.target.value)}
                   className={inputClass}
                   placeholder="+91 ..."

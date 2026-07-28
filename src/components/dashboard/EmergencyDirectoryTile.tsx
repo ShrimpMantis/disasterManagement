@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { fetchEmergencyDirectorySnapshot } from "@/actions/emergencyAssetActions";
+import type { EmergencyDirectorySnapshot } from "@/actions/emergencyAssetActions";
 import { Building2, ChevronRight, Hospital, Shield } from "lucide-react";
 import type { EmergencyDirectoryTab } from "@/types/emergencyDirectory";
 
@@ -61,7 +62,7 @@ function directoryHref(district: string, tab: EmergencyDirectoryTab): string {
 }
 
 export function EmergencyDirectoryTile() {
-  const [snapshot, setSnapshot] = useState({
+  const [snapshot, setSnapshot] = useState<EmergencyDirectorySnapshot>({
     hospitals: [],
     police: [],
     armyCamps: [],

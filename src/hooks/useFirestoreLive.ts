@@ -34,13 +34,13 @@ export function useDistrictTicketsLive(district: string | null) {
   const [loading, setLoading] = useState(Boolean(district));
 
   useEffect(() => {
-    if (!district) {
-      setTickets([]);
-      setLoading(false);
-      return;
-    }
+    if (!district) return;
 
-    setLoading(true);
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      if (!cancelled) setLoading(true);
+    }, 0);
+
     const unsub = subscribeDistrictTickets(
       district,
       (next) => {
@@ -53,8 +53,16 @@ export function useDistrictTicketsLive(district: string | null) {
         setLoading(false);
       },
     );
-    return unsub;
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      unsub();
+    };
   }, [district]);
+
+  if (!district) {
+    return { tickets: [] as TicketDoc[], loading: false, error: null };
+  }
 
   return { tickets, loading, error };
 }
@@ -66,13 +74,13 @@ export function useChatMessagesLive(requestId: string | null) {
   const [loading, setLoading] = useState(Boolean(requestId));
 
   useEffect(() => {
-    if (!requestId) {
-      setMessages([]);
-      setLoading(false);
-      return;
-    }
+    if (!requestId) return;
 
-    setLoading(true);
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      if (!cancelled) setLoading(true);
+    }, 0);
+
     const unsub = subscribeChatMessages(
       requestId,
       (next) => {
@@ -85,8 +93,16 @@ export function useChatMessagesLive(requestId: string | null) {
         setLoading(false);
       },
     );
-    return unsub;
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      unsub();
+    };
   }, [requestId]);
+
+  if (!requestId) {
+    return { messages: [] as ChatMessageDoc[], loading: false, error: null };
+  }
 
   return { messages, loading, error };
 }

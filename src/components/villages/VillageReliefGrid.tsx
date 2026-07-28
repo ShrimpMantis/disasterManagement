@@ -162,7 +162,13 @@ export function VillageReliefGrid() {
             ),
           );
         } else {
-          setUploadMessage(dashboardResult.ok ? assetResult.error : dashboardResult.error);
+          setUploadMessage(
+            !dashboardResult.ok
+              ? dashboardResult.error
+              : !assetResult.ok
+                ? assetResult.error
+                : "Failed to load village relief data.",
+          );
         }
 
         setLoading(false);

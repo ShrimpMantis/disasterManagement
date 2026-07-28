@@ -25,7 +25,6 @@ export function useVillageCoordinationAnalytics() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoadingDistricts(true);
     void getDistrictVillageCoverageSummaries().then((result) => {
       if (cancelled) return;
       if (result.ok) {

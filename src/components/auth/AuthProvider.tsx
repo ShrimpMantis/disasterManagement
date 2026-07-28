@@ -36,8 +36,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     } catch (error) {
       console.error(error);
-      setUser(null);
-      setLoading(false);
+      // Defer so we don't call setState synchronously in the effect body.
+      const timer = window.setTimeout(() => {
+        setUser(null);
+        setLoading(false);
+      }, 0);
+      return () => {
+        window.clearTimeout(timer);
+        unsubscribe?.();
+      };
     }
 
     return () => {

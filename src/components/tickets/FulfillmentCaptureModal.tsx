@@ -40,10 +40,28 @@ export function FulfillmentCaptureModal({
   onClose,
   onSubmit,
 }: FulfillmentCaptureModalProps) {
-  const scannerId = useMemo(
-    () => `html5-qr-${ticket?.id ?? "capture"}`,
-    [ticket?.id],
+  if (!open || !ticket) return null;
+
+  return (
+    <FulfillmentCaptureModalForm
+      key={ticket.id}
+      ticket={ticket}
+      targetCoordinates={targetCoordinates}
+      onClose={onClose}
+      onSubmit={onSubmit}
+    />
   );
+}
+
+function FulfillmentCaptureModalForm({
+  ticket,
+  targetCoordinates,
+  onClose,
+  onSubmit,
+}: Omit<FulfillmentCaptureModalProps, "open" | "ticket"> & {
+  ticket: ReliefTicket;
+}) {
+  const scannerId = useMemo(() => `html5-qr-${ticket.id}`, [ticket.id]);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [scannedCodes, setScannedCodes] = useState<string[]>([]);
   const [manualQr, setManualQr] = useState("");
@@ -57,7 +75,7 @@ export function FulfillmentCaptureModal({
   const [submitting, setSubmitting] = useState(false);
 
   const expectedCodes = useMemo(
-    () => (ticket ? buildExpectedItemQrs(ticket) : []),
+    () => buildExpectedItemQrs(ticket),
     [ticket],
   );
   const totalExpectedItems = expectedCodes.length;
@@ -70,18 +88,6 @@ export function FulfillmentCaptureModal({
     distanceFromTarget > LOCATION_OVERRIDE_THRESHOLD_METERS;
 
   useEffect(() => {
-    if (!open || !ticket) return;
-    setScannedCodes([]);
-    setManualQr("");
-    setPhotoFile(null);
-    setPhotoPreviewUrl("");
-    setDeliveryCoordinates(null);
-    setGeoError("");
-    setOverrideReason("");
-  }, [open, ticket]);
-
-  useEffect(() => {
-    if (!open || !ticket) return;
     let cancelled = false;
     const qr = new Html5Qrcode(scannerId);
     scannerRef.current = qr;
@@ -113,7 +119,13 @@ export function FulfillmentCaptureModal({
           });
       }
     };
-  }, [open, scannerId, ticket]);
+  }, [scannerId]);
+
+  useEffect(() => {
+    return () => {
+      if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    };
+  }, [photoPreviewUrl]);
 
   async function captureLocation() {
     setGeoError("");
@@ -148,7 +160,7 @@ export function FulfillmentCaptureModal({
   }
 
   async function handleSubmit() {
-    if (!ticket || !photoFile || !deliveryCoordinates) return;
+    if (!photoFile || !deliveryCoordinates) return;
     if (needsOverride && !overrideReason.trim()) return;
     setSubmitting(true);
     try {
@@ -165,8 +177,6 @@ export function FulfillmentCaptureModal({
       setSubmitting(false);
     }
   }
-
-  if (!open || !ticket) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(21,32,43,0.45)] px-4 py-6">
@@ -274,6 +284,8 @@ export function FulfillmentCaptureModal({
                 />
               </label>
               {photoPreviewUrl ? (
+                // Blob preview URLs are not compatible with next/image optimization.
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={photoPreviewUrl}
                   alt="Drop preview"

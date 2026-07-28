@@ -41,7 +41,7 @@ type EmergencyAssetsSnapshot = {
   camps: ReliefCampFacility[];
 };
 
-type EmergencyDirectorySnapshot = {
+export type EmergencyDirectorySnapshot = {
   hospitals: HospitalFacilityRecord[];
   police: PolicePersonnelRecord[];
   armyCamps: ArmyCampRecord[];

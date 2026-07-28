@@ -130,6 +130,8 @@ export function AuditInspectionPanel({
 
           <div className="space-y-3">
             <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
+              {/* Remote Firebase Storage proof URLs — next/image needs explicit domains per URL shape */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={selectedTicket.proofOfFulfillment.dropPhotoUrl}
                 alt="Drop proof"
