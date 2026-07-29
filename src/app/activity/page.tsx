@@ -51,8 +51,9 @@ export default function ActivityPage() {
 
   useEffect(() => {
     if (!live.error) return;
+    const message = live.error;
     const id = window.setTimeout(() => {
-      setFlash(live.error);
+      setFlash(message);
     }, 0);
     return () => window.clearTimeout(id);
   }, [live.error]);
