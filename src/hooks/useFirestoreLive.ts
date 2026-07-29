@@ -5,7 +5,9 @@ import { ensureMultiTabOfflinePersistence } from "@/lib/firebase/firestore";
 import { subscribeChatMessages } from "@/lib/firestore/chats";
 import { subscribeEmergencyAssets } from "@/lib/firestore/emergencyAssets";
 import { subscribeDistrictTickets } from "@/lib/firestore/tickets";
+import { subscribeActivityEvents } from "@/lib/firestore/activityEvents";
 import type { ChatMessageDoc, EmergencyAssetDoc, TicketDoc } from "@/lib/firestore/schema";
+import type { ActivityEvent } from "@/types/activityEvent";
 
 /**
  * Bootstraps multi-tab IndexedDB persistence once on the client.
@@ -129,4 +131,28 @@ export function useEmergencyAssetsLive() {
   }, []);
 
   return { assets, loading, error };
+}
+
+/** Live ops activity log via onSnapshot — /activityEvents (72h window, limit 20) */
+export function useActivityEventsLive() {
+  const [events, setEvents] = useState<ActivityEvent[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsub = subscribeActivityEvents(
+      (next) => {
+        setEvents(next);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        setError(err.message);
+        setLoading(false);
+      },
+    );
+    return unsub;
+  }, []);
+
+  return { events, loading, error };
 }

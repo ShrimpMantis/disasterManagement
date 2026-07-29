@@ -29,6 +29,10 @@ export interface NGOProfile {
   primaryContact: NGOPersonnel;
   capabilities: NGOCapability[];
   assignedVillageIds: string[];
+  /** Lifetime units delivered by this organization. */
+  totalUnitsDelivered?: number;
+  /** Badge labels unlocked from contribution thresholds. */
+  milestoneBadges?: string[];
 }
 
 export const SECTOR_LABELS: Record<SectorCategory, string> = {

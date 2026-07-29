@@ -28,7 +28,18 @@ export function getFirebaseApp(): FirebaseApp {
 }
 
 export function getFirebaseAuth(): Auth {
-  return getAuth(getFirebaseApp());
+  const auth = getAuth(getFirebaseApp());
+
+  // Phone Auth on hostname "localhost" is blocked by Firebase (invalid-app-credential).
+  // In local dev we disable app verification so Console "Phone numbers for testing" work.
+  if (
+    process.env.NODE_ENV === "development" &&
+    typeof window !== "undefined"
+  ) {
+    auth.settings.appVerificationDisabledForTesting = true;
+  }
+
+  return auth;
 }
 
 /** Re-export Firestore accessors for app modules. */

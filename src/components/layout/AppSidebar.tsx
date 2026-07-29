@@ -11,6 +11,7 @@ import {
   HandHeart,
   LayoutDashboard,
   MapPinned,
+  Radio,
   Shield,
   Ticket,
   Truck,
@@ -22,6 +23,7 @@ import {
 import { useAuth } from "@/components/auth/AuthProvider";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { getUserLabel } from "@/lib/firebase/auth";
+import { getOperationalMode } from "@/lib/features/operationalMode";
 import {
   findRegistrationForUser,
   useRegistrationState,
@@ -42,6 +44,11 @@ const navItems: NavItem[] = [
     icon: LayoutDashboard,
   },
   {
+    href: "/activity",
+    label: "Live activity",
+    icon: Radio,
+  },
+  {
     href: "/reliefDemandManagement",
     label: "Relief demand management",
     icon: ClipboardList,
@@ -58,7 +65,7 @@ const navItems: NavItem[] = [
   },
   {
     href: "/ngo-portal",
-    label: "NGO pledge portal",
+    label: "Pledge help portal",
     icon: HandHeart,
   },
   {
@@ -87,8 +94,8 @@ const navItems: NavItem[] = [
     icon: Shield,
   },
   {
-    href: "/logistics",
-    label: "Transport dispatch",
+    href: "/transport",
+    label: "Transport & fleet",
     icon: Truck,
   },
   {
@@ -103,6 +110,7 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
   const { hydrated, volunteers, ngos, citizenGroups } = useRegistrationState();
+  const operationalMode = getOperationalMode();
   const [collapsed, setCollapsed] = useState(false);
   const [ready, setReady] = useState(false);
 
@@ -121,14 +129,21 @@ export function AppSidebar() {
       ),
   );
 
-  const items = navItems.map((item) =>
-    item.href === "/volunteer-registration"
-      ? {
-          ...item,
-          label: hasRegistration ? "My registration" : "Volunteer registration",
-        }
-      : item,
-  );
+  const items = navItems
+    .filter(
+      (item) =>
+        item.href !== "/registration-queue" || operationalMode === "ADMIN_SOURCED",
+    )
+    .map((item) =>
+      item.href === "/volunteer-registration"
+        ? {
+            ...item,
+            label: hasRegistration
+              ? "My registration"
+              : "Volunteer registration",
+          }
+        : item,
+    );
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -214,15 +229,29 @@ export function AppSidebar() {
       </nav>
 
       <div className={`border-t border-[var(--line)] p-3 ${collapsed ? "px-2" : ""}`}>
-        {!collapsed ? (
-          <div className="mb-3 rounded-xl bg-[var(--accent-soft)] px-3 py-2">
-            <p className="truncate text-sm font-medium text-[var(--accent-strong)]">
-              {getUserLabel(user)}
-            </p>
-            <p className="truncate text-xs text-[var(--ink-muted)]">Signed in</p>
-          </div>
-        ) : null}
-        <LogoutButton compact={collapsed} className="w-full px-2 py-2.5" />
+        {user ? (
+          <>
+            {!collapsed ? (
+              <div className="mb-3 rounded-xl bg-[var(--accent-soft)] px-3 py-2">
+                <p className="truncate text-sm font-medium text-[var(--accent-strong)]">
+                  {getUserLabel(user)}
+                </p>
+                <p className="truncate text-xs text-[var(--ink-muted)]">Signed in</p>
+              </div>
+            ) : null}
+            <LogoutButton compact={collapsed} className="w-full px-2 py-2.5" />
+          </>
+        ) : (
+          <Link
+            href={`/login?returnTo=${encodeURIComponent(pathname || "/transport")}`}
+            title={collapsed ? "Sign in" : undefined}
+            className={`inline-flex w-full items-center justify-center rounded-xl bg-[var(--accent)] px-3 py-2.5 text-sm font-semibold text-white ${
+              collapsed ? "px-2" : ""
+            }`}
+          >
+            {collapsed ? "In" : "Sign in"}
+          </Link>
+        )}
       </div>
     </aside>
   );

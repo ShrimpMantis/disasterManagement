@@ -10,9 +10,15 @@ function FirestoreBootstrap({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  allowGuest = false,
+}: {
+  children: ReactNode;
+  allowGuest?: boolean;
+}) {
   return (
-    <AuthGuard>
+    <AuthGuard allowGuest={allowGuest}>
       <FirestoreBootstrap>
         <div className="flex min-h-screen w-full">
           <AppSidebar />

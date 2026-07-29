@@ -10,6 +10,7 @@ import {
   type ActionResult,
 } from "@/lib/actions/result";
 import { FIRESTORE_COLLECTIONS } from "@/lib/firestore/schema";
+import { recordActivityEvent } from "@/actions/activityActions";
 import type {
   DispatchChatMessage,
   DispatchSenderRole,
@@ -391,6 +392,19 @@ export async function authorizeTransportDispatch(
       lastAcceptedMessageId: input.messageId,
       serverUpdatedAt: FieldValue.serverTimestamp(),
     });
+
+    const destination =
+      request.destinationLocation?.trim() ||
+      request.pickupLocation?.trim() ||
+      request.district;
+    const callsign = offer.offeredAssetDetails.registrationOrCallsign;
+    void recordActivityEvent({
+      title: `${callsign} dispatched to ${destination}`,
+      category: "TRANSPORT_DISPATCH",
+      status: status === "FULFILLED" ? "COMPLETED" : "IN_PROGRESS",
+      locationName: destination,
+      description: `Dispatch authorized for ${request.modalityType.replaceAll("_", " ").toLowerCase()} request ${input.requestId} in ${request.district}.`,
+    }).catch(() => undefined);
 
     return actionOk(
       { requestId: input.requestId, status, quantityFulfilled },

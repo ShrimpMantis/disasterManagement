@@ -1,0 +1,82 @@
+# Alternate App Hosting env for the Admin-Sourced / agency deployment.
+# Use when provisioning a second backend (e.g. admin.reliefnet.in):
+#   1. Create backend `reliefnet-admin` in Firebase App Hosting
+#   2. Point it at this repo with the same rootDir
+#   3. Set NEXT_PUBLIC_OPERATIONAL_MODE=ADMIN_SOURCED (console override or merge
+#      this file's env block into that backend's apphosting config)
+#
+# This file mirrors apphosting.yaml except for OPERATIONAL_MODE.
+# Keep Firebase client keys in sync with apphosting.yaml when rotating.
+
+headers:
+  - glob: /_next/static/**
+    headers:
+      - key: Cache-Control
+        value: public, max-age=31536000, immutable
+
+runConfig:
+  minInstances: 0
+  maxInstances: 10
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: "AIzaSyBVOscGmfvtIQLgqK6Kwwtxp9yTF30cvs8"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "disastermgmt-ccf14.firebaseapp.com"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "disastermgmt-ccf14"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "disastermgmt-ccf14.firebasestorage.app"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "779106552242"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:779106552242:web:d4d249fcf94e37f266fcab"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_OPERATIONAL_MODE
+    value: "ADMIN_SOURCED"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+    secret: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID
+    secret: NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: FIREBASE_PROJECT_ID
+    value: "disastermgmt-ccf14"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: FIREBASE_ADMIN_CLIENT_EMAIL
+    secret: FIREBASE_ADMIN_CLIENT_EMAIL
+  - variable: FIREBASE_ADMIN_PRIVATE_KEY
+    secret: FIREBASE_ADMIN_PRIVATE_KEY

@@ -3,6 +3,7 @@
 import { actionFail, actionOk, isFiniteNumber, isNonEmptyString, type ActionResult } from "@/lib/actions/result";
 import { FIRESTORE_COLLECTIONS, type TicketDoc } from "@/lib/firestore/schema";
 import { tryGetAdminFirestore } from "@/lib/firebaseAdmin";
+import { recordActivityEvent } from "@/actions/activityActions";
 import type { NGOProfile } from "@/types/ngo";
 import type { EntityPledgeCommitment, OrganizationCapabilityProfile } from "@/types/pledgeManagement";
 import type { NGOPledgeSubmission } from "@/types/pledgeIntake";
@@ -300,6 +301,29 @@ export async function submitPledgeToTicket(
       tx.set(capabilityRef, nextCapability, { merge: true });
       return { ticket: nextTicket, capability: nextCapability, pledge };
     });
+
+    const itemSummary = input.pledgedItems
+      .map((item) => `${item.quantityPledged} ${item.itemDisplayName}`)
+      .join(", ");
+    const impactQuantity = input.pledgedItems.reduce(
+      (sum, item) => sum + item.quantityPledged,
+      0,
+    );
+    const impactUnit =
+      input.pledgedItems[0]?.itemDisplayName?.trim() || "Units";
+    const locationName =
+      result.ticket.districtName?.trim() ||
+      result.ticket.ticketCode ||
+      "Assam";
+    void recordActivityEvent({
+      title: `${itemSummary || "Relief supplies"} pledged for ${locationName}`,
+      category: "WAREHOUSE_PLEDGE",
+      status: "IN_PROGRESS",
+      locationName,
+      description: `Unmet need claimed via pledge ${result.pledge.pledgeId} on ticket ${input.ticketId}.`,
+      impactQuantity: impactQuantity > 0 ? impactQuantity : null,
+      impactUnit,
+    }).catch(() => undefined);
 
     return actionOk(result);
   } catch (error) {

@@ -12,12 +12,16 @@
  * - /citizenGroupRegistrations/{groupId}
  * - /reliefTickets/{ticketId}
  * - /transportRequests/{requestId}  (parent metadata for chat threads)
+ * - /transporters/{transporterId}   (crowdsourced fleet directory)
  * - /sosAlerts/{sosId}              (map SOS pins)
  * - /ticketFulfillments/{fulfillmentId}
  * - /auditQueue/{auditId}
  * - /transitManifests/{manifestId}
  * - /inboundConsignments/{shipmentId}
  * - /consolidatedReliefMetrics/{docId}
+ * - /users/{uid}  (auth profile: userType, organization affiliation)
+ * - /pledges/{pledgeId}  (marketplace pledges linked to userId + needId)
+ * - /activityEvents/{eventId}  (system-generated live activity log; TTL via expireAt)
  */
 
 import type { AuditSamplingRecord } from "@/types/fulfillmentAudit";
@@ -31,8 +35,10 @@ import type {
 } from "@/types/registration";
 import type { CitizenGroup } from "@/types/volunteerOnboarding";
 import type { TransportCapabilityRequest } from "@/types/transportationDispatch";
+import type { TransporterRecord } from "@/types/transporterFleet";
 import type { WarehouseLocation } from "@/types/warehouseModule";
 import type { VillageDemandMetric } from "@/types/villageCoordination";
+import type { ActivityEvent } from "@/types/activityEvent";
 
 export const FIRESTORE_COLLECTIONS = {
   districts: "districts",
@@ -48,7 +54,9 @@ export const FIRESTORE_COLLECTIONS = {
   reliefTickets: "reliefTickets",
   ngos: "ngos",
   pledges: "pledges",
+  users: "users",
   transportRequests: "transportRequests",
+  transporters: "transporters",
   sosAlerts: "sosAlerts",
   ticketFulfillments: "ticketFulfillments",
   auditQueue: "auditQueue",
@@ -57,6 +65,7 @@ export const FIRESTORE_COLLECTIONS = {
   consolidatedReliefMetrics: "consolidatedReliefMetrics",
   keyOfficials: "keyOfficials",
   districtProgress: "districtProgress",
+  activityEvents: "activityEvents",
 } as const;
 
 export type EmergencyAssetKind =
@@ -127,6 +136,9 @@ export type ChatMessageDoc = DispatchChatMessage;
 /** Parent transport request at /transportRequests/{requestId} */
 export type TransportRequestDoc = TransportCapabilityRequest;
 
+/** Crowdsourced fleet row at /transporters/{transporterId} */
+export type TransporterDoc = TransporterRecord;
+
 export type SosAlertDoc = SosAlert & {
   districtId?: string;
   geohash: string;
@@ -137,6 +149,8 @@ export type NgoRegistrationDoc = NGORegistration;
 export type CitizenGroupRegistrationDoc = CitizenGroup;
 export type AuditQueueDoc = AuditSamplingRecord;
 export type ReliefTicketCreationDoc = ReliefTicketDocument;
+/** System ops log at /activityEvents/{eventId} */
+export type ActivityEventDoc = ActivityEvent;
 
 export function districtTicketsPath(districtId: string): [string, string, string] {
   return [

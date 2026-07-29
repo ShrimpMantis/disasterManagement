@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   AlertTriangle,
   Columns3,
@@ -10,11 +10,11 @@ import {
   Ticket,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { useAppRole } from "@/hooks/useAppRole";
-import { useCrossDockState } from "@/hooks/useCrossDockState";
+import { AuthPromptModal } from "@/components/auth/AuthPromptModal";
+import { useOperationalMode } from "@/hooks/useOperationalMode";
 import { useTicketQueueState } from "@/hooks/useTicketQueueState";
 import { AdminTicketCreationModal } from "@/components/tickets/AdminTicketCreationModal";
-import { InboundConsignmentPanel } from "@/components/crossDock/InboundConsignmentPanel";
+import { ReportNeedModal } from "@/components/tickets/ReportNeedModal";
 import { AuditInspectionPanel } from "@/components/tickets/AuditInspectionPanel";
 import { BulkActionsBar } from "@/components/tickets/BulkActionsBar";
 import { FulfillmentCaptureModal } from "@/components/tickets/FulfillmentCaptureModal";
@@ -26,14 +26,46 @@ type ConsoleView = "table" | "kanban";
 
 export function TicketOperationsConsole() {
   const { user } = useAuth();
-  const { isAdmin, loading: roleLoading } = useAppRole();
+  const {
+    isAdmin,
+    roleLoading,
+    canOperationalWrite,
+    isCrowdMode,
+    isAdminSourcedMode,
+  } = useOperationalMode();
   const queue = useTicketQueueState();
-  const crossDock = useCrossDockState(queue.tickets);
   const [view, setView] = useState<ConsoleView>("table");
   const [assignTicketId, setAssignTicketId] = useState<string | null>(null);
   const [dispatchTicketId, setDispatchTicketId] = useState<string | null>(null);
   const [fulfillTicketId, setFulfillTicketId] = useState<string | null>(null);
   const [createTicketOpen, setCreateTicketOpen] = useState(false);
+  const [reportNeedOpen, setReportNeedOpen] = useState(false);
+  const [authPrompt, setAuthPrompt] = useState<{
+    open: boolean;
+    message: string;
+  }>({ open: false, message: "" });
+
+  const requireAuth = useCallback((message: string) => {
+    setAuthPrompt({ open: true, message });
+  }, []);
+
+  const showCreateCta = canOperationalWrite;
+  const useCrowdForm = isCrowdMode && !isAdmin;
+
+  function handleCreateClick() {
+    if (!canOperationalWrite) return;
+    if (!user) {
+      requireAuth(
+        "Sign in with phone/OTP to report a need and create a demand ticket.",
+      );
+      return;
+    }
+    if (useCrowdForm) {
+      setReportNeedOpen(true);
+      return;
+    }
+    setCreateTicketOpen(true);
+  }
 
   const metrics = useMemo(() => {
     const requested = queue.tickets.filter((t) => t.status === "REQUESTED").length;
@@ -89,19 +121,24 @@ export function TicketOperationsConsole() {
           </h2>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
             {`Showing ${queue.tickets.length} tickets across districts.`}
+            {isAdminSourcedMode
+              ? " Admin-sourced mode: creation limited to agency accounts."
+              : " Crowdsourced mode: citizens and field volunteers can report needs."}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setCreateTicketOpen(true)}
-            disabled={roleLoading || !isAdmin}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-          >
-            <Plus className="h-4 w-4" aria-hidden />
-            Create Ticket
-          </button>
+          {showCreateCta ? (
+            <button
+              type="button"
+              onClick={handleCreateClick}
+              disabled={roleLoading}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              {isCrowdMode && !isAdmin ? "+ Report Urgent Need" : "Create Ticket"}
+            </button>
+          ) : null}
           <div className="inline-flex rounded-xl border border-[var(--line)] bg-white/70 p-1">
             <button
               type="button"
@@ -153,18 +190,6 @@ export function TicketOperationsConsole() {
           {queue.flashMessage}
         </div>
       ) : null}
-
-      <InboundConsignmentPanel
-        tickets={queue.tickets}
-        crossDock={crossDock}
-        onTicketsUpdated={(next) => {
-          queue.replaceTickets(next);
-          queue.setFlashMessage(
-            "Ticket queue synced after cross-dock allocation / receipt.",
-          );
-          queue.setErrorMessage("");
-        }}
-      />
 
       <div className="rounded-xl border border-[var(--line)] bg-white/70 px-3 py-2 text-xs text-[var(--ink-muted)]">
         <span className="inline-flex items-center gap-1 font-medium text-[var(--ink)]">
@@ -267,7 +292,7 @@ export function TicketOperationsConsole() {
       />
 
       <AdminTicketCreationModal
-        open={createTicketOpen}
+        open={createTicketOpen && isAdmin}
         isAdmin={isAdmin}
         villages={queue.villages}
         onClose={() => setCreateTicketOpen(false)}
@@ -276,6 +301,33 @@ export function TicketOperationsConsole() {
           queue.setFlashMessage(`${ticket.id} created and added to the queue.`);
           queue.setErrorMessage("");
         }}
+      />
+
+      {user ? (
+        <ReportNeedModal
+          open={reportNeedOpen}
+          villages={queue.villages}
+          isAdmin={isAdmin}
+          userId={user.uid}
+          userDisplayName={
+            user.displayName || user.phoneNumber || "Field reporter"
+          }
+          onClose={() => setReportNeedOpen(false)}
+          onCreated={(ticket) => {
+            queue.prependTicket(ticket);
+            queue.setFlashMessage(
+              `${ticket.id} reported as ${ticket.verificationStatus ?? "CROWD_REPORTED"}.`,
+            );
+            queue.setErrorMessage("");
+          }}
+        />
+      ) : null}
+
+      <AuthPromptModal
+        open={authPrompt.open}
+        message={authPrompt.message}
+        returnTo="/ticket-queue"
+        onClose={() => setAuthPrompt({ open: false, message: "" })}
       />
     </section>
   );
@@ -299,7 +351,9 @@ function Metric({
 
   return (
     <div className={`rounded-xl border px-3 py-2 ${toneClass}`}>
-      <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">{label}</p>
+      <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+        {label}
+      </p>
       <p className="text-xl font-semibold text-[var(--ink)]">{value}</p>
     </div>
   );

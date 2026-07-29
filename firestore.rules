@@ -78,6 +78,22 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Auth-scoped user profiles (userType + organization affiliation)
+    match /users/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow create, update: if isSignedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+
+    // Marketplace pledges (linked to userId / organizationId / needId)
+    match /pledges/{pledgeId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn();
+      allow delete: if false;
+    }
+
     // ---- District-scoped ticket queues ----
     // /districts/{districtId}/tickets/{ticketId}
     match /districts/{districtId} {
@@ -154,6 +170,38 @@ service cloud.firestore {
     match /transportRequests/{requestId} {
       allow read: if isSignedIn();
       allow create, update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    // Crowdsourced transporter / fleet directory (Admin SDK primary writer).
+    // Public read so guests can browse; mutations require auth.
+    match /transporters/{transporterId} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    // System-generated live activity log (Admin SDK primary writer).
+    // Public read so guests can browse; community upvotes require auth.
+    // Docs auto-expire via Firestore TTL on `expireAt` (createdAt + 72h).
+    match /activityEvents/{eventId} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasAll([
+          'id',
+          'title',
+          'category',
+          'status',
+          'locationName',
+          'upvoteCount',
+          'upvotedBy',
+          'createdAt',
+          'updatedAt',
+          'expireAt'
+        ]);
+      allow update: if isSignedIn()
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['upvoteCount', 'upvotedBy', 'updatedAt', 'serverUpdatedAt']);
       allow delete: if false;
     }
 

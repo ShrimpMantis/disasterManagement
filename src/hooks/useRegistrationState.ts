@@ -8,6 +8,7 @@ import {
   fetchRegistrationRosterSnapshot,
   updateRegistrationVerification,
 } from "@/actions/registrationActions";
+import { isCrowdMode } from "@/lib/features/operationalMode";
 import type {
   NGORegistration,
   VerificationStatus,
@@ -128,7 +129,9 @@ export function useRegistrationState() {
       const entry: VolunteerRegistration = {
         ...input,
         volunteerId: `vol-${Date.now()}`,
-        verificationStatus: "PENDING_VERIFICATION",
+        verificationStatus: isCrowdMode()
+          ? "APPROVED_ACTIVE"
+          : "PENDING_VERIFICATION",
         createdAtTimestamp: new Date().toISOString(),
       };
       const result = await createVolunteerRegistration(entry);
@@ -155,7 +158,9 @@ export function useRegistrationState() {
       const entry: NGORegistration = {
         ...input,
         ngoId: `ngo-reg-${Date.now()}`,
-        verificationStatus: "PENDING_VERIFICATION",
+        verificationStatus: isCrowdMode()
+          ? "APPROVED_ACTIVE"
+          : "PENDING_VERIFICATION",
         createdAtTimestamp: new Date().toISOString(),
       };
       const result = await createNgoRegistration(entry);
@@ -183,7 +188,9 @@ export function useRegistrationState() {
         ...input,
         groupId: `cg-${Date.now()}`,
         groupType: "CITIZEN_VOLUNTEER_GROUP",
-        verificationStatus: "PENDING_VERIFICATION",
+        verificationStatus: isCrowdMode()
+          ? "VERIFIED_ACTIVE"
+          : "PENDING_VERIFICATION",
         createdTimestamp: new Date().toISOString(),
       };
       const result = await createCitizenGroupRegistration(entry);

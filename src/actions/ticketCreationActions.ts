@@ -25,6 +25,24 @@ import type {
   TicketItemRequest,
 } from "@/types/reliefTicketCreation";
 import type { ReliefTicket, TicketPriority, RequestChannel } from "@/types/ticket";
+import {
+  CROWD_NEED_DEFAULT_UNIT,
+  CROWD_NEED_TO_RELIEF_CATEGORY,
+  resolveVerificationStatusFromUpvotes,
+  urgencyToPriority,
+} from "@/lib/tickets/crowdNeed";
+import type {
+  CrowdNeedCategory,
+  TicketCreatorType,
+} from "@/types/ticket";
+import { DEFAULT_MAP_CENTER } from "@/types/map";
+import { toPlainData } from "@/lib/firestore/serialize";
+import { FieldValue } from "firebase-admin/firestore";
+import {
+  allowsOperationalWrite,
+  isAdminSourcedMode,
+  isCrowdMode,
+} from "@/lib/features/operationalMode";
 
 type TicketCounterDoc = {
   current: number;
@@ -100,6 +118,9 @@ function buildQueueTicket(
 ): ReliefTicket {
   return {
     id: ticketCode,
+    title: input.items[0]
+      ? `${input.items[0].quantityRequested} ${input.items[0].itemDisplayName} Needed`
+      : `Relief need in ${input.villageOrShelterName}`,
     villageId: input.villageOrShelterId ?? slugifyDistrictId(input.villageOrShelterName),
     villageName: input.villageOrShelterName,
     revenueCircle: input.revenueCircle,
@@ -139,6 +160,11 @@ function buildQueueTicket(
     specialInstructions: input.specialInstructions,
     createdById: input.createdById,
     createdByName: input.createdByName,
+    createdByPhone: input.contactPersonPhone,
+    createdByType: "ADMIN",
+    verificationStatus: "OFFICIALLY_VERIFIED",
+    upvoteCount: 1,
+    upvotedBy: [input.createdById],
   };
 }
 
@@ -288,5 +314,315 @@ export async function createReliefTicket(
   } catch (error) {
     console.error("createReliefTicket failed", error);
     return actionFail("Could not create relief ticket.");
+  }
+}
+
+export type CreateCrowdNeedInput = {
+  title: string;
+  category: CrowdNeedCategory;
+  locationName: string;
+  quantityRequired: number;
+  urgency: "CRITICAL" | "HIGH" | "MEDIUM";
+  createdByPhone: string;
+  createdByType: TicketCreatorType;
+  createdById: string;
+  createdByName: string;
+  /** True when caller holds admin role (gates ADMIN_SOURCED mode). */
+  isAdminUser: boolean;
+  districtName?: string;
+  revenueCircle?: string;
+  villageId?: string;
+};
+
+/**
+ * Crowdsourced self-service need report.
+ * Crowd mode: any authenticated user. Admin-sourced: admins only.
+ */
+export async function createCrowdReportedNeed(
+  input: CreateCrowdNeedInput,
+): Promise<ActionResult<{ queueTicket: TicketDoc }>> {
+  if (!allowsOperationalWrite(input.isAdminUser)) {
+    return actionFail(
+      "Ticket creation is restricted to admin accounts in this deployment.",
+    );
+  }
+  if (isAdminSourcedMode() && !input.isAdminUser) {
+    return actionFail("Only admin or agency accounts can create tickets here.");
+  }
+  if (!isNonEmptyString(input.title)) {
+    return actionFail("Need title is required.");
+  }
+  if (!isNonEmptyString(input.locationName)) {
+    return actionFail("Location / village name is required.");
+  }
+  if (!isNonEmptyString(input.createdByPhone) || input.createdByPhone.trim().length < 7) {
+    return actionFail("A valid ground contact phone number is required.");
+  }
+  if (!isNonEmptyString(input.createdById)) {
+    return actionFail("Sign in to report a need.");
+  }
+  if (
+    !isFiniteNumber(input.quantityRequired) ||
+    input.quantityRequired <= 0
+  ) {
+    return actionFail("Quantity required must be greater than zero.");
+  }
+  if (
+    input.category !== "FOOD_WATER" &&
+    input.category !== "MEDICAL" &&
+    input.category !== "RESCUE_EQUIPMENT" &&
+    input.category !== "SHELTER_KIT"
+  ) {
+    return actionFail("Invalid need category.");
+  }
+
+  const db = tryGetAdminFirestore();
+  if (!db) {
+    // Local / credential-less preview: synthesize a queue ticket.
+    const timestamp = new Date().toISOString();
+    const ticketCode = `TKT-CROWD-${Date.now().toString().slice(-6)}`;
+    const reliefCategory = CROWD_NEED_TO_RELIEF_CATEGORY[input.category];
+    const unit = CROWD_NEED_DEFAULT_UNIT[input.category];
+    const districtName = input.districtName?.trim() || "Assam";
+    const queueTicket: TicketDoc = {
+      id: ticketCode,
+      title: input.title.trim(),
+      villageId:
+        input.villageId?.trim() || slugifyDistrictId(input.locationName),
+      villageName: input.locationName.trim(),
+      revenueCircle: input.revenueCircle?.trim() || "Field Report",
+      district: districtName,
+      districtId: slugifyDistrictId(districtName),
+      priority: urgencyToPriority(input.urgency),
+      status: "REQUESTED",
+      sourceChannel: "CITIZEN_SOS",
+      needCategory: input.category,
+      items: [
+        {
+          itemName: input.title.trim(),
+          category: reliefCategory,
+          totalRequestedQuantity: Math.floor(input.quantityRequired),
+          quantityPledged: 0,
+          fulfilledQuantity: 0,
+          unit,
+          underlyingRequestIds: [`crowd-${ticketCode}`],
+        },
+      ],
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      slaBreached: false,
+      requesterPhone: input.createdByPhone.trim(),
+      createdByPhone: input.createdByPhone.trim(),
+      createdById: input.createdById,
+      createdByName: input.createdByName.trim() || "Field reporter",
+      createdByType: input.createdByType,
+      verificationStatus: isCrowdMode()
+        ? "CROWD_REPORTED"
+        : "OFFICIALLY_VERIFIED",
+      upvoteCount: 1,
+      upvotedBy: [input.createdById],
+      dropCoordinates: { ...DEFAULT_MAP_CENTER },
+      landmarkNotes: input.locationName.trim(),
+    };
+    return actionOk({ queueTicket }, `${ticketCode} reported.`);
+  }
+
+  try {
+    const now = new Date();
+    const year = now.getUTCFullYear();
+    const districtName = input.districtName?.trim() || "Assam";
+    const districtSlug = slugifyDistrictId(districtName);
+    const [districtsRoot, districtId, ticketsSub] = districtTicketsPath(districtSlug);
+    const ticketCounterRef = db
+      .collection("_meta")
+      .doc(`relief-ticket-counter-${year}`);
+    const reliefCategory = CROWD_NEED_TO_RELIEF_CATEGORY[input.category];
+    const unit = CROWD_NEED_DEFAULT_UNIT[input.category];
+    const verificationStatus = isCrowdMode()
+      ? ("CROWD_REPORTED" as const)
+      : ("OFFICIALLY_VERIFIED" as const);
+
+    const result = await db.runTransaction(async (tx) => {
+      const counterSnap = await tx.get(ticketCounterRef);
+      const currentCounter = counterSnap.exists
+        ? ((counterSnap.data() as TicketCounterDoc).current ?? 0)
+        : 0;
+      const nextCounter = currentCounter + 1;
+      const ticketCode = `TKT-${year}-${String(nextCounter).padStart(4, "0")}`;
+      const ticketId = `relief-ticket-${year}-${nextCounter}`;
+      const timestamp = now.toISOString();
+      const quantity = Math.floor(input.quantityRequired);
+
+      const createInput: CreateReliefTicketInput = {
+        districtId: districtSlug,
+        districtName,
+        revenueCircle: input.revenueCircle?.trim() || "Field Report",
+        villageOrShelterId:
+          input.villageId?.trim() || slugifyDistrictId(input.locationName),
+        villageOrShelterName: input.locationName.trim(),
+        dropCoordinates: { ...DEFAULT_MAP_CENTER },
+        landmarkNotes: input.locationName.trim(),
+        sourceChannel: "WHATSAPP_SOS",
+        contactPersonName: input.createdByName.trim() || "Field reporter",
+        contactPersonPhone: input.createdByPhone.trim(),
+        contactPersonRole: input.createdByType,
+        priority:
+          input.urgency === "CRITICAL"
+            ? "CRITICAL_LIFE_SAFETY"
+            : input.urgency === "HIGH"
+              ? "URGENT"
+              : "STANDARD_RELIEF",
+        items: [
+          {
+            category: reliefCategory,
+            itemDisplayName: input.title.trim(),
+            unitType: unit,
+            quantityRequested: quantity,
+            quantityFulfilled: 0,
+            estimatedUnitCost: 0,
+            estimatedTotalCost: 0,
+          },
+        ],
+        createdById: input.createdById,
+        createdByName: input.createdByName.trim() || "Field reporter",
+      };
+
+      const topLevelTicket = buildTopLevelTicket(
+        createInput,
+        ticketId,
+        ticketCode,
+        timestamp,
+      );
+      const queueTicket = buildQueueTicket(createInput, ticketCode, timestamp);
+      const queueDoc: TicketDoc = {
+        ...queueTicket,
+        title: input.title.trim(),
+        needCategory: input.category,
+        districtId: districtSlug,
+        createdByPhone: input.createdByPhone.trim(),
+        createdByType: input.createdByType,
+        verificationStatus,
+        upvoteCount: 1,
+        upvotedBy: [input.createdById],
+        sourceChannel: "CITIZEN_SOS",
+      };
+
+      tx.set(ticketCounterRef, { year, current: nextCounter }, { merge: true });
+      tx.set(
+        db.collection(FIRESTORE_COLLECTIONS.reliefTickets).doc(ticketId),
+        {
+          ...topLevelTicket,
+          verificationStatus,
+          createdByType: input.createdByType,
+          createdByPhone: input.createdByPhone.trim(),
+          needCategory: input.category,
+          title: input.title.trim(),
+        },
+      );
+      tx.set(
+        db
+          .collection(districtsRoot)
+          .doc(districtId)
+          .collection(ticketsSub)
+          .doc(ticketCode),
+        queueDoc,
+      );
+
+      return queueDoc;
+    });
+
+    return actionOk(
+      { queueTicket: toPlainData(result) },
+      `${result.id} reported and added to the demand queue.`,
+    );
+  } catch (error) {
+    console.error("createCrowdReportedNeed failed", error);
+    return actionFail("Could not submit need report.");
+  }
+}
+
+/**
+ * Community confirmation upvote on a crowd-reported ticket.
+ * At 5+ upvotes, verificationStatus upgrades to COMMUNITY_CONFIRMED.
+ */
+export async function toggleTicketCommunityUpvote(input: {
+  ticketId: string;
+  districtId: string;
+  userId: string;
+}): Promise<ActionResult<TicketDoc>> {
+  if (!isCrowdMode()) {
+    return actionFail("Community verification is only available in crowdsourced mode.");
+  }
+  if (!isNonEmptyString(input.ticketId) || !isNonEmptyString(input.userId)) {
+    return actionFail("Ticket and signed-in user are required.");
+  }
+
+  const db = tryGetAdminFirestore();
+  if (!db) {
+    return actionFail("Firebase Admin is not configured.");
+  }
+
+  const districtSlug = slugifyDistrictId(
+    input.districtId || "Assam",
+  );
+  const [districtsRoot, districtId, ticketsSub] = districtTicketsPath(districtSlug);
+  const docRef = db
+    .collection(districtsRoot)
+    .doc(districtId)
+    .collection(ticketsSub)
+    .doc(input.ticketId);
+
+  try {
+    const snap = await docRef.get();
+    if (!snap.exists) {
+      return actionFail("Ticket not found.");
+    }
+
+    const current = snap.data() as TicketDoc;
+    if (current.verificationStatus === "OFFICIALLY_VERIFIED") {
+      return actionFail("Officially verified tickets do not accept community upvotes.");
+    }
+
+    const upvotedBy = Array.isArray(current.upvotedBy)
+      ? current.upvotedBy.filter((uid): uid is string => typeof uid === "string")
+      : [];
+    const already = upvotedBy.includes(input.userId);
+    const nextUpvotedBy = already
+      ? upvotedBy.filter((uid) => uid !== input.userId)
+      : [...upvotedBy, input.userId];
+    const upvoteCount = nextUpvotedBy.length;
+    const verificationStatus = resolveVerificationStatusFromUpvotes(
+      upvoteCount,
+      current.verificationStatus,
+    );
+    const updatedAt = new Date().toISOString();
+
+    await docRef.update({
+      upvotedBy: nextUpvotedBy,
+      upvoteCount,
+      verificationStatus,
+      updatedAt,
+      serverUpdatedAt: FieldValue.serverTimestamp(),
+    });
+
+    const updated: TicketDoc = {
+      ...current,
+      upvotedBy: nextUpvotedBy,
+      upvoteCount,
+      verificationStatus,
+      updatedAt,
+    };
+
+    return actionOk(
+      toPlainData(updated),
+      already
+        ? "Confirmation removed."
+        : verificationStatus === "COMMUNITY_CONFIRMED"
+          ? "Community confirmed — need upgraded."
+          : "Ground need confirmed.",
+    );
+  } catch (error) {
+    console.error("toggleTicketCommunityUpvote failed", error);
+    return actionFail("Could not update community confirmation.");
   }
 }

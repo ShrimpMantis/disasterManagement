@@ -9,13 +9,14 @@ import {
   type ColDef,
   type ICellRendererParams,
 } from "ag-grid-community";
-import { HandHeart, LayoutGrid, List, Search } from "lucide-react";
+import { HandHeart, LayoutGrid, List, Plus, Search } from "lucide-react";
 import {
   getItemDeficit,
   getTicketDeficitPercent,
 } from "@/lib/tickets/applyPledgeToTicket";
 import type { ReliefTicket, TicketPriority } from "@/types/ticket";
 import { TICKET_PRIORITY_LABELS } from "@/types/ticket";
+import { TicketVerificationBadge } from "@/components/tickets/TicketVerificationBadge";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -34,6 +35,12 @@ const gridTheme = themeQuartz.withParams({
 type UnmetNeedsMarketplaceProps = {
   tickets: ReliefTicket[];
   onPledge: (ticketId: string) => void;
+  /** When false, marketplace is browse-only (admin-sourced individual lock). */
+  canPledge?: boolean;
+  pledgeRestrictedMessage?: string;
+  /** Crowdsourced / admin create CTA. */
+  canReportNeed?: boolean;
+  onReportNeed?: () => void;
 };
 
 type MarketplaceRow = ReliefTicket & {
@@ -58,7 +65,14 @@ function PriorityBadge({ priority }: { priority: TicketPriority }) {
   );
 }
 
-export function UnmetNeedsMarketplace({ tickets, onPledge }: UnmetNeedsMarketplaceProps) {
+export function UnmetNeedsMarketplace({
+  tickets,
+  onPledge,
+  canPledge = true,
+  pledgeRestrictedMessage = "Pledging is limited to verified non-profit partners in this deployment.",
+  canReportNeed = false,
+  onReportNeed,
+}: UnmetNeedsMarketplaceProps) {
   const [view, setView] = useState<"cards" | "table">("cards");
   const [search, setSearch] = useState("");
   const [district, setDistrict] = useState("ALL");
@@ -189,17 +203,21 @@ export function UnmetNeedsMarketplace({ tickets, onPledge }: UnmetNeedsMarketpla
         filter: false,
         cellRenderer: (params: ICellRendererParams<MarketplaceRow>) =>
           params.data ? (
-            <button
-              type="button"
-              onClick={() => onPledge(params.data!.id)}
-              className="rounded-lg bg-[var(--accent)] px-2.5 py-1 text-xs font-semibold text-white"
-            >
-              Pledge Help
-            </button>
+            canPledge ? (
+              <button
+                type="button"
+                onClick={() => onPledge(params.data!.id)}
+                className="rounded-lg bg-[var(--accent)] px-2.5 py-1 text-xs font-semibold text-white"
+              >
+                Pledge Help
+              </button>
+            ) : (
+              <span className="text-[11px] text-[var(--ink-muted)]">View only</span>
+            )
           ) : null,
       },
     ],
-    [onPledge],
+    [canPledge, onPledge],
   );
 
   return (
@@ -216,31 +234,45 @@ export function UnmetNeedsMarketplace({ tickets, onPledge }: UnmetNeedsMarketpla
             Open village deficits
           </h2>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
-            Browse REQUESTED / PARTIALLY_FULFILLED tickets and pledge partial or full aid.
+            {canPledge
+              ? "Browse REQUESTED / PARTIALLY_FULFILLED tickets and pledge partial or full aid."
+              : pledgeRestrictedMessage}
           </p>
         </div>
 
-        <div className="inline-flex rounded-xl border border-[var(--line)] bg-white/70 p-1">
-          <button
-            type="button"
-            onClick={() => setView("cards")}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium ${
-              view === "cards" ? "bg-[var(--accent)] text-white" : "text-[var(--ink-muted)]"
-            }`}
-          >
-            <LayoutGrid className="h-4 w-4" aria-hidden />
-            Cards
-          </button>
-          <button
-            type="button"
-            onClick={() => setView("table")}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium ${
-              view === "table" ? "bg-[var(--accent)] text-white" : "text-[var(--ink-muted)]"
-            }`}
-          >
-            <List className="h-4 w-4" aria-hidden />
-            Table
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {canReportNeed && onReportNeed ? (
+            <button
+              type="button"
+              onClick={onReportNeed}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-strong)]"
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              + Report Urgent Need
+            </button>
+          ) : null}
+          <div className="inline-flex rounded-xl border border-[var(--line)] bg-white/70 p-1">
+            <button
+              type="button"
+              onClick={() => setView("cards")}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium ${
+                view === "cards" ? "bg-[var(--accent)] text-white" : "text-[var(--ink-muted)]"
+              }`}
+            >
+              <LayoutGrid className="h-4 w-4" aria-hidden />
+              Cards
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("table")}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium ${
+                view === "table" ? "bg-[var(--accent)] text-white" : "text-[var(--ink-muted)]"
+              }`}
+            >
+              <List className="h-4 w-4" aria-hidden />
+              Table
+            </button>
+          </div>
         </div>
       </div>
 
@@ -291,13 +323,19 @@ export function UnmetNeedsMarketplace({ tickets, onPledge }: UnmetNeedsMarketpla
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="font-[family-name:var(--font-fraunces)] text-xl text-[var(--ink)]">
-                      {ticket.villageName}
+                      {ticket.title || ticket.villageName}
                     </h3>
                     <p className="text-xs text-[var(--ink-muted)]">
-                      {ticket.district} · {ticket.revenueCircle}
+                      {ticket.villageName} · {ticket.district} · {ticket.revenueCircle}
                     </p>
                   </div>
-                  <PriorityBadge priority={ticket.priority} />
+                  <div className="flex flex-col items-end gap-1.5">
+                    <PriorityBadge priority={ticket.priority} />
+                    <TicketVerificationBadge
+                      status={ticket.verificationStatus}
+                      upvoteCount={ticket.upvoteCount}
+                    />
+                  </div>
                 </div>
 
                 <div className="mt-4">
@@ -343,13 +381,19 @@ export function UnmetNeedsMarketplace({ tickets, onPledge }: UnmetNeedsMarketpla
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => onPledge(ticket.id)}
-                  className="mt-4 w-full rounded-xl bg-[var(--accent)] px-3 py-2.5 text-sm font-semibold text-white hover:bg-[var(--accent-strong)]"
-                >
-                  Pledge Help for this Village
-                </button>
+                {canPledge ? (
+                  <button
+                    type="button"
+                    onClick={() => onPledge(ticket.id)}
+                    className="mt-4 w-full rounded-xl bg-[var(--accent)] px-3 py-2.5 text-sm font-semibold text-white hover:bg-[var(--accent-strong)]"
+                  >
+                    Pledge Help for this Village
+                  </button>
+                ) : (
+                  <p className="mt-4 rounded-xl border border-[var(--line)] bg-white/70 px-3 py-2.5 text-center text-xs text-[var(--ink-muted)]">
+                    {pledgeRestrictedMessage}
+                  </p>
+                )}
               </article>
             ))
           )}

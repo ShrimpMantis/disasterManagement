@@ -1,46 +1,86 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ClipboardCheck, HandHeart, PackageCheck } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { AuthPromptModal } from "@/components/auth/AuthPromptModal";
 import { useNGOPledgePortalState } from "@/hooks/useNGOPledgePortalState";
+import { useOperationalMode } from "@/hooks/useOperationalMode";
 import { CustomOffersApprovalQueue } from "@/components/ngoPortal/CustomOffersApprovalQueue";
 import { NGODashboard } from "@/components/ngoPortal/NGODashboard";
 import { PledgeSubmissionModal } from "@/components/ngoPortal/PledgeSubmissionModal";
 import { UnmetNeedsMarketplace } from "@/components/ngoPortal/UnmetNeedsMarketplace";
+import { ReportNeedModal } from "@/components/tickets/ReportNeedModal";
 
 type PortalTab = "marketplace" | "my-pledges" | "unlisted-offers";
 
 export function NGOSelfServicePortal() {
+  const { user } = useAuth();
   const portal = useNGOPledgePortalState();
+  const {
+    isAdminSourcedMode,
+    canIndividualPledge,
+    canOperationalWrite,
+    isAdmin,
+  } = useOperationalMode();
   const [tab, setTab] = useState<PortalTab>("marketplace");
   const [pledgeTicketId, setPledgeTicketId] = useState<string | null>(null);
+  const [reportNeedOpen, setReportNeedOpen] = useState(false);
+  const [authPrompt, setAuthPrompt] = useState<{
+    open: boolean;
+    message: string;
+  }>({ open: false, message: "" });
+
+  const requireAuth = useCallback((message: string) => {
+    setAuthPrompt({ open: true, message });
+  }, []);
 
   const selectedTicket = useMemo(
     () =>
-      portal.marketplaceTickets.find((ticket) => ticket.id === pledgeTicketId) ?? null,
+      portal.marketplaceTickets.find((ticket) => ticket.id === pledgeTicketId) ??
+      null,
     [pledgeTicketId, portal.marketplaceTickets],
   );
 
   const pendingCount = portal.pendingCustomOffers.length;
+  const identity = portal.portalIdentity;
+  const isVerifiedNonprofit = identity?.kind === "NON_PROFIT";
+  const canPledge = canIndividualPledge || isVerifiedNonprofit;
+  const actorLabel =
+    identity?.displayName ||
+    portal.individualActorName ||
+    portal.activeNgo?.name ||
+    "Pledger";
+
+  function handleReportNeed() {
+    if (!canOperationalWrite) return;
+    if (!user) {
+      requireAuth(
+        "Sign in with phone/OTP to report an urgent need to the demand queue.",
+      );
+      return;
+    }
+    setReportNeedOpen(true);
+  }
+
+  if (!portal.profileReady) {
+    return (
+      <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-10 text-center text-sm text-[var(--ink-muted)] shadow-[var(--shadow)]">
+        Loading your pledge identity…
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-6">
       <div className="flex flex-col gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 shadow-[var(--shadow)] sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.14em] text-[var(--ink-muted)]">
-            Acting as verified NGO
+            {identity?.roleLabel ?? "Pledging as volunteer"}
           </p>
-          <select
-            value={portal.activeNgoId}
-            onChange={(event) => portal.setActiveNgoId(event.target.value)}
-            className="mt-1 rounded-xl border border-[var(--line)] bg-white px-3 py-2 text-sm font-semibold text-[var(--ink)]"
-          >
-            {portal.ngos.map((ngo) => (
-              <option key={ngo.id} value={ngo.id}>
-                {ngo.name}
-              </option>
-            ))}
-          </select>
+          <p className="mt-1 rounded-xl border border-[var(--line)] bg-[var(--accent-soft)] px-3 py-2 text-sm font-semibold text-[var(--ink)]">
+            {actorLabel}
+          </p>
         </div>
 
         <div
@@ -151,7 +191,15 @@ export function NGOSelfServicePortal() {
       {tab === "marketplace" ? (
         <UnmetNeedsMarketplace
           tickets={portal.marketplaceTickets}
-          onPledge={setPledgeTicketId}
+          onPledge={canPledge ? setPledgeTicketId : () => undefined}
+          canPledge={canPledge}
+          pledgeRestrictedMessage={
+            isAdminSourcedMode
+              ? "Admin-sourced mode: pledging is locked to verified non-profit partners."
+              : undefined
+          }
+          canReportNeed={canOperationalWrite}
+          onReportNeed={handleReportNeed}
         />
       ) : null}
 
@@ -175,14 +223,45 @@ export function NGOSelfServicePortal() {
       ) : null}
 
       <PledgeSubmissionModal
-        open={Boolean(selectedTicket)}
+        open={Boolean(selectedTicket) && canPledge}
         ticket={selectedTicket}
-        ngoName={portal.activeNgo?.name ?? "NGO"}
+        ngoName={actorLabel}
         availableManpowerCapacity={
           portal.activeCapabilityProfile?.netAvailableManpower ?? 0
         }
         onClose={() => setPledgeTicketId(null)}
         onSubmit={(payload) => portal.submitPledge(payload)}
+      />
+
+      {user ? (
+        <ReportNeedModal
+          open={reportNeedOpen}
+          villages={portal.villages}
+          isAdmin={isAdmin}
+          userId={user.uid}
+          userDisplayName={
+            portal.individualActorName ||
+            user.displayName ||
+            user.phoneNumber ||
+            "Field reporter"
+          }
+          userType={portal.userProfile?.userType}
+          onClose={() => setReportNeedOpen(false)}
+          onCreated={(ticket) => {
+            portal.setFlashMessage(
+              `${ticket.id} reported — marked ${ticket.verificationStatus ?? "CROWD_REPORTED"}.`,
+            );
+            portal.setErrorMessage("");
+            void portal.refreshPortal();
+          }}
+        />
+      ) : null}
+
+      <AuthPromptModal
+        open={authPrompt.open}
+        message={authPrompt.message}
+        returnTo="/ngo-portal"
+        onClose={() => setAuthPrompt({ open: false, message: "" })}
       />
     </div>
   );

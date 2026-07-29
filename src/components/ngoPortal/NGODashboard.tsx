@@ -10,12 +10,17 @@ import {
   type ICellRendererParams,
 } from "ag-grid-community";
 import { PackageCheck, Truck, X } from "lucide-react";
-import type { NGOPledgeSubmission, PledgeStatus } from "@/types/pledgeIntake";
+import type {
+  MarketplacePledgeStatus,
+  NGOPledgeSubmission,
+} from "@/types/pledgeIntake";
 import {
   ADMIN_APPROVAL_LABELS,
   getCustomItems,
   getMatchedItems,
-  PLEDGE_STATUS_LABELS,
+  MARKETPLACE_PLEDGE_STATUS_LABELS,
+  resolveNeedTitle,
+  toMarketplacePledgeStatus,
 } from "@/types/pledgeIntake";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -44,21 +49,22 @@ type NGODashboardProps = {
 
 type PledgeRow = NGOPledgeSubmission & {
   villageName: string;
+  needTitleDisplay: string;
   itemSummary: string;
   progressPercent: number;
+  marketplaceStatus: MarketplacePledgeStatus;
 };
 
-function StatusPill({ status }: { status: PledgeStatus }) {
-  const styles: Record<PledgeStatus, string> = {
-    OFFERED: "bg-[#eef2ff] text-[#3730a3]",
-    CONFIRMED: "bg-[#e0f2fe] text-[#075985]",
+function StatusPill({ status }: { status: MarketplacePledgeStatus }) {
+  const styles: Record<MarketplacePledgeStatus, string> = {
+    PLEDGED: "bg-[#e0f2fe] text-[#075985]",
     IN_TRANSIT: "bg-[#fff7ed] text-[#9a3412]",
-    FULFILLED: "bg-[var(--accent-soft)] text-[var(--accent-strong)]",
-    REJECTED: "bg-[#f3f4f6] text-[#6b7280]",
+    DELIVERED: "bg-[var(--accent-soft)] text-[var(--accent-strong)]",
+    CANCELLED: "bg-[#f3f4f6] text-[#6b7280]",
   };
   return (
     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${styles[status]}`}>
-      {PLEDGE_STATUS_LABELS[status]}
+      {MARKETPLACE_PLEDGE_STATUS_LABELS[status]}
     </span>
   );
 }
@@ -84,10 +90,18 @@ export function NGODashboard({
         const customSummary = custom.map(
           (item) => `${item.itemName}: ${item.quantity} ${item.unit} (custom)`,
         );
+        const itemsPledgedSummary = (pledge.itemsPledged ?? []).map(
+          (item) => `${item.itemName}: ${item.quantity} ${item.unit}`,
+        );
         return {
           ...pledge,
           villageName: pledge.targetVillageName || "District pool",
-          itemSummary: [...matchedSummary, ...customSummary].join(", ") || "—",
+          needTitleDisplay: resolveNeedTitle(pledge),
+          itemSummary:
+            itemsPledgedSummary.join(", ") ||
+            [...matchedSummary, ...customSummary].join(", ") ||
+            "—",
+          marketplaceStatus: toMarketplacePledgeStatus(pledge.status),
           progressPercent:
             pledge.status === "FULFILLED"
               ? 100
@@ -108,15 +122,22 @@ export function NGODashboard({
   const columnDefs = useMemo<ColDef<PledgeRow>[]>(
     () => [
       { field: "id", headerName: "Pledge ID", flex: 1.1, minWidth: 140, filter: true },
-      { field: "villageName", headerName: "Destination Village", flex: 1.2, minWidth: 150, filter: true },
-      { field: "ticketId", headerName: "Ticket", flex: 1.1, minWidth: 140, filter: true },
       {
-        field: "status",
+        field: "needTitleDisplay",
+        headerName: "Unmet Need",
+        flex: 1.5,
+        minWidth: 180,
+        filter: true,
+      },
+      { field: "villageName", headerName: "Destination", flex: 1.2, minWidth: 150, filter: true },
+      {
+        field: "marketplaceStatus",
         headerName: "Status",
         flex: 1,
         minWidth: 120,
-        cellRenderer: (params: ICellRendererParams<PledgeRow, PledgeStatus>) =>
-          params.value ? <StatusPill status={params.value} /> : null,
+        cellRenderer: (
+          params: ICellRendererParams<PledgeRow, MarketplacePledgeStatus>,
+        ) => (params.value ? <StatusPill status={params.value} /> : null),
       },
       {
         field: "adminApprovalStatus",
@@ -131,26 +152,21 @@ export function NGODashboard({
             : "",
       },
       {
-        field: "progressPercent",
-        headerName: "Progress",
-        flex: 0.9,
-        minWidth: 110,
-        valueFormatter: (params) => `${params.value ?? 0}%`,
-      },
-      {
-        field: "estimatedDeliveryDate",
-        headerName: "ETA",
+        field: "createdAt",
+        headerName: "Pledged At",
         flex: 1.1,
         minWidth: 150,
         valueFormatter: (params) => {
           if (!params.value) return "";
           const date = new Date(params.value as string);
-          return Number.isNaN(date.getTime()) ? String(params.value) : date.toLocaleString();
+          return Number.isNaN(date.getTime())
+            ? String(params.value)
+            : date.toLocaleString();
         },
       },
       {
         field: "itemSummary",
-        headerName: "Items",
+        headerName: "Items pledged",
         flex: 1.6,
         minWidth: 220,
         tooltipField: "itemSummary",
@@ -204,10 +220,11 @@ export function NGODashboard({
           </span>
         </div>
         <h2 className="font-[family-name:var(--font-fraunces)] text-2xl tracking-tight text-[var(--ink)]">
-          NGO commitment dashboard
+          My pledges & shipments
         </h2>
         <p className="mt-1 text-sm text-[var(--ink-muted)]">
-          Track confirmed pledges, mark shipments in-transit, and upload proof of delivery.
+          Track pledges against unmet needs with live status badges (Pledged, In Transit,
+          Delivered).
         </p>
       </div>
 

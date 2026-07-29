@@ -2,6 +2,9 @@ import { FirebaseError } from "firebase/app";
 
 export function getAuthErrorMessage(error: unknown): string {
   if (!(error instanceof FirebaseError)) {
+    if (error instanceof Error && error.message.trim()) {
+      return error.message;
+    }
     return "Something went wrong. Try again.";
   }
 
@@ -21,9 +24,9 @@ export function getAuthErrorMessage(error: unknown): string {
     case "auth/too-many-requests":
       return "Too many attempts. Please wait and try again.";
     case "auth/invalid-phone-number":
-      return "Enter a valid phone number with country code (e.g. +919876543210).";
+      return "Invalid phone number. Country code is required — use a leading + (e.g. +919876543210).";
     case "auth/missing-phone-number":
-      return "Phone number is required.";
+      return "Phone number is required, including country code (e.g. +919876543210).";
     case "auth/quota-exceeded":
       return "SMS quota exceeded. Try again later.";
     case "auth/code-expired":
@@ -34,6 +37,8 @@ export function getAuthErrorMessage(error: unknown): string {
       return "Enter the verification code sent to your phone.";
     case "auth/captcha-check-failed":
       return "reCAPTCHA verification failed. Refresh and try again.";
+    case "auth/invalid-app-credential":
+      return "Phone verification failed. On local dev, add a test phone number in Firebase Console → Authentication → Phone, or try the deployed app.";
     case "auth/invalid-action-code":
       return "This password reset link is invalid or has expired.";
     case "auth/expired-action-code":
@@ -52,6 +57,12 @@ export function getAuthErrorMessage(error: unknown): string {
 export function toE164Phone(input: string): string {
   const trimmed = input.trim().replace(/[\s()-]/g, "");
   if (!trimmed) return "";
+  // Require an explicit country code; do not invent one by prefixing "+".
   if (trimmed.startsWith("+")) return trimmed;
-  return `+${trimmed}`;
+  return "";
+}
+
+export function phoneMissingCountryCode(input: string): boolean {
+  const trimmed = input.trim().replace(/[\s()-]/g, "");
+  return Boolean(trimmed) && !trimmed.startsWith("+");
 }

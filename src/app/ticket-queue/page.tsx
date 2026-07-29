@@ -5,7 +5,7 @@ import { TicketOperationsConsole } from "@/components/tickets/TicketOperationsCo
 
 export default function TicketQueuePage() {
   return (
-    <AppShell>
+    <AppShell allowGuest>
       <main className="relative mx-auto flex min-h-screen w-full max-w-[1400px] flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
         <header className="animate-rise border-b border-[var(--line)] pb-6">
           <p className="text-sm uppercase tracking-[0.18em] text-[var(--ink-muted)]">
@@ -16,7 +16,8 @@ export default function TicketQueuePage() {
           </h1>
           <p className="mt-2 max-w-3xl text-sm text-[var(--ink-muted)]">
             Multi-channel ingestion, village-level deduplication, lifecycle enforcement, and
-            operator queue management.
+            operator queue management. Crowdsourced reporters can submit urgent needs after
+            phone sign-in.
           </p>
         </header>
 

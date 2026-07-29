@@ -16,6 +16,27 @@ export type TicketStatus =
   | "AUDIT_VERIFIED"
   | "AUDIT_FAILED";
 
+/** Crowd need categories for self-service ticket reporting. */
+export type CrowdNeedCategory =
+  | "FOOD_WATER"
+  | "MEDICAL"
+  | "RESCUE_EQUIPMENT"
+  | "SHELTER_KIT";
+
+export type TicketVerificationStatus =
+  | "CROWD_REPORTED"
+  | "COMMUNITY_CONFIRMED"
+  | "OFFICIALLY_VERIFIED";
+
+export type TicketCreatorType =
+  | "CITIZEN"
+  | "VILLAGE_LEAD"
+  | "NON_PROFIT"
+  | "ADMIN";
+
+/** Upvotes at or above this threshold promote CROWD_REPORTED → COMMUNITY_CONFIRMED. */
+export const COMMUNITY_CONFIRMATION_UPVOTE_THRESHOLD = 5;
+
 export interface RawReliefRequest {
   id: string;
   sourceChannel: RequestChannel;
@@ -46,6 +67,8 @@ export interface ConsolidatedItemNeed {
 
 export interface ReliefTicket {
   id: string; // Formatted ticket code, e.g., "TKT-VIL102-0826"
+  /** Short headline for crowd-reported needs (e.g. "50 Life Jackets Needed"). */
+  title?: string;
   villageId: string;
   villageName: string;
   revenueCircle: string;
@@ -53,6 +76,8 @@ export interface ReliefTicket {
   priority: TicketPriority;
   status: TicketStatus;
   sourceChannel?: RequestChannel;
+  /** Crowdsourced need category when reported via self-service form. */
+  needCategory?: CrowdNeedCategory;
   items: ConsolidatedItemNeed[];
   assignedEntityId?: string; // NGO ID or Warehouse ID
   assignedEntityName?: string;
@@ -74,6 +99,12 @@ export interface ReliefTicket {
   specialInstructions?: string;
   createdById?: string;
   createdByName?: string;
+  /** Ground contact phone used for verification. */
+  createdByPhone?: string;
+  createdByType?: TicketCreatorType;
+  verificationStatus?: TicketVerificationStatus;
+  upvoteCount?: number;
+  upvotedBy?: string[];
   createdAt: string;
   updatedAt: string;
   slaBreached: boolean; // True if in REQUESTED/ASSIGNED > 12h
@@ -113,6 +144,29 @@ export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
   SELECTED_FOR_AUDIT: "Selected For Audit",
   AUDIT_VERIFIED: "Audit Verified",
   AUDIT_FAILED: "Audit Failed",
+};
+
+export const CROWD_NEED_CATEGORY_LABELS: Record<CrowdNeedCategory, string> = {
+  FOOD_WATER: "Food & Water",
+  MEDICAL: "Medical",
+  RESCUE_EQUIPMENT: "Rescue Equipment",
+  SHELTER_KIT: "Shelter Kit",
+};
+
+export const TICKET_VERIFICATION_STATUS_LABELS: Record<
+  TicketVerificationStatus,
+  string
+> = {
+  CROWD_REPORTED: "Crowd Reported",
+  COMMUNITY_CONFIRMED: "Community Confirmed",
+  OFFICIALLY_VERIFIED: "Officially Verified",
+};
+
+export const TICKET_CREATOR_TYPE_LABELS: Record<TicketCreatorType, string> = {
+  CITIZEN: "Citizen",
+  VILLAGE_LEAD: "Village Lead",
+  NON_PROFIT: "Non-profit",
+  ADMIN: "Admin",
 };
 
 export const KANBAN_COLUMNS: TicketStatus[] = [

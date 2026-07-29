@@ -2,11 +2,35 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchNgoPortalSnapshot } from "@/actions/pledgeActions";
+import { recordActivityEvent, creditEntityContribution } from "@/actions/activityActions";
 import {
+  communityGoalBadgeLabel,
+  communityGoalTitle,
+  formatImpactDeliveryTitle,
+  isRapidResponse,
+  newlyFullyCoveredItems,
+  primaryImpactUnit,
+  resolveDeliveryMilestoneDecorations,
+  sumPledgeImpactQuantity,
+} from "@/lib/activity/milestones";
+import {
+  countTicketDonors,
+  resolveHeroAccolade,
+} from "@/lib/activity/heroAccolades";
+import { useAuth } from "@/components/auth/AuthProvider";
+import {
+  findRegistrationForUser,
+  useRegistrationState,
+} from "@/hooks/useRegistrationState";
+import {
+  subscribePledgesByOrganizationId,
+  subscribePledgesByUserId,
   updatePledgeSubmission,
   upsertPledgeSubmission,
 } from "@/lib/firestore/pledges";
+import { ensureUserProfile } from "@/lib/firestore/users";
 import { upsertDistrictTicket } from "@/lib/firestore/tickets";
+import { isAdminSourcedMode } from "@/lib/features/operationalMode";
 import {
   applyConfirmedPledgeToTicket,
   applyDeliveryProofToTicket,
@@ -21,10 +45,20 @@ import type {
   DistrictPoolItem,
   NGOPledgeSubmission,
 } from "@/types/pledgeIntake";
+import { buildItemsPledged } from "@/types/pledgeIntake";
 import type { ReliefTicket, VillageLookup } from "@/types/ticket";
+import type { UserProfile } from "@/types/userProfile";
 import type { PledgeSubmitPayload } from "@/components/ngoPortal/PledgeSubmissionModal";
 
 const ACTIVE_NGO_STORAGE_KEY = "reliefnet-active-ngo-id";
+
+export type PortalActorKind = "NON_PROFIT" | "VOLUNTEER" | "CITIZEN_GROUP";
+
+export type PortalIdentity = {
+  kind: PortalActorKind;
+  roleLabel: string;
+  displayName: string;
+};
 
 function deriveMaxManpowerCapacity(ngo: NGOProfile): number {
   const totalCapacity = ngo.capabilities.reduce(
@@ -34,13 +68,30 @@ function deriveMaxManpowerCapacity(ngo: NGOProfile): number {
   return Math.max(8, Math.round(totalCapacity / 200));
 }
 
+function buildNeedTitle(ticket: ReliefTicket): string {
+  return `${ticket.villageName} unmet need (${ticket.id})`;
+}
+
 export function useNGOPledgePortalState() {
+  const { user, loading: authLoading } = useAuth();
+  const {
+    volunteers,
+    ngos: ngoRegistrations,
+    citizenGroups,
+    hydrated: registrationsHydrated,
+  } = useRegistrationState();
+
   const [villages, setVillages] = useState<VillageLookup[]>([]);
   const [ngos, setNgos] = useState<NGOProfile[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [portalIdentity, setPortalIdentity] = useState<PortalIdentity | null>(
+    null,
+  );
+  const [profileReady, setProfileReady] = useState(false);
 
   const [activeNgoId, setActiveNgoIdState] = useState<string>(() => {
-    if (typeof window === "undefined") return "ngo-1";
-    return window.localStorage.getItem(ACTIVE_NGO_STORAGE_KEY) || "ngo-1";
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem(ACTIVE_NGO_STORAGE_KEY) || "";
   });
 
   const setActiveNgoId = useCallback((ngoId: string) => {
@@ -50,14 +101,10 @@ export function useNGOPledgePortalState() {
     }
   }, []);
 
-  const activeNgo = useMemo(
-    () => ngos.find((ngo) => ngo.id === activeNgoId) ?? ngos[0] ?? null,
-    [activeNgoId, ngos],
-  );
-
   const [tickets, setTickets] = useState<ReliefTicket[]>([]);
-
   const [pledges, setPledges] = useState<NGOPledgeSubmission[]>([]);
+  const [myLivePledges, setMyLivePledges] = useState<NGOPledgeSubmission[]>([]);
+  const [myPledgesHydrated, setMyPledgesHydrated] = useState(false);
   const [flashMessage, setFlashMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -84,21 +131,304 @@ export function useNGOPledgePortalState() {
     };
   }, [loadPortalSnapshot]);
 
-  const resolvedActiveNgoId = activeNgo?.id ?? ngos[0]?.id ?? "";
+  // Resolve / persist Firestore user profile from auth + registration affiliation.
+  useEffect(() => {
+    if (authLoading || !registrationsHydrated) return;
+
+    let cancelled = false;
+
+    async function resolveProfile() {
+      if (!user) {
+        if (!cancelled) {
+          setUserProfile(null);
+          setProfileReady(true);
+        }
+        return;
+      }
+
+      const registration = findRegistrationForUser(
+        volunteers,
+        ngoRegistrations,
+        {
+          uid: user.uid,
+          email: user.email,
+          phone: user.phoneNumber,
+        },
+        citizenGroups,
+      );
+
+      let seed: Parameters<typeof ensureUserProfile>[1] = {};
+      let identity: PortalIdentity = {
+        kind: "VOLUNTEER",
+        roleLabel: "Pledging as volunteer",
+        displayName:
+          user.displayName?.trim() || user.email?.trim() || "Volunteer",
+      };
+
+      if (registration?.kind === "ngo") {
+        const reg = registration.record;
+        const matchedNgo =
+          ngos.find((entry) => entry.id === reg.ngoId) ||
+          ngos.find(
+            (entry) =>
+              entry.name.trim().toLowerCase() ===
+              reg.organizationLegalName.trim().toLowerCase(),
+          );
+        const organizationId = matchedNgo?.id ?? reg.ngoId;
+        const organizationName =
+          matchedNgo?.name ?? reg.organizationLegalName;
+        seed = {
+          userType: "NON_PROFIT",
+          organizationId,
+          organizationName,
+        };
+        identity = {
+          kind: "NON_PROFIT",
+          roleLabel: "Pledging as non-profit",
+          displayName: organizationName,
+        };
+      } else if (registration?.kind === "volunteer") {
+        const fullName = registration.record.fullName.trim();
+        seed = { userType: "INDIVIDUAL", organizationId: null, organizationName: null };
+        identity = {
+          kind: "VOLUNTEER",
+          roleLabel: "Pledging as volunteer",
+          displayName:
+            fullName ||
+            user.displayName?.trim() ||
+            user.email?.trim() ||
+            "Volunteer",
+        };
+      } else if (registration?.kind === "citizenGroup") {
+        const groupName = registration.record.groupName.trim();
+        seed = { userType: "INDIVIDUAL", organizationId: null, organizationName: null };
+        identity = {
+          kind: "CITIZEN_GROUP",
+          roleLabel: "Pledging as citizen group",
+          displayName:
+            groupName ||
+            user.displayName?.trim() ||
+            user.email?.trim() ||
+            "Citizen group",
+        };
+      } else {
+        seed = { userType: "INDIVIDUAL", organizationId: null, organizationName: null };
+      }
+
+      try {
+        const profile = await ensureUserProfile(user, seed);
+        if (!cancelled) {
+          setUserProfile(profile);
+          setPortalIdentity(
+            profile.userType === "NON_PROFIT"
+              ? {
+                  kind: "NON_PROFIT",
+                  roleLabel: "Pledging as non-profit",
+                  displayName:
+                    profile.organizationName ||
+                    identity.displayName ||
+                    "Affiliated non-profit",
+                }
+              : identity,
+          );
+          setProfileReady(true);
+        }
+      } catch (error) {
+        console.error(error);
+        if (!cancelled) {
+          setUserProfile({
+            uid: user.uid,
+            userType: seed.userType ?? "INDIVIDUAL",
+            phone: user.phoneNumber ?? null,
+            organizationId: seed.organizationId ?? null,
+            organizationName: seed.organizationName ?? null,
+            displayName: user.displayName,
+            email: user.email,
+            status: "ACTIVE",
+            role:
+              seed.userType === "ADMIN"
+                ? "ADMIN"
+                : seed.userType === "NON_PROFIT"
+                  ? "NON_PROFIT"
+                  : "CITIZEN",
+          });
+          setPortalIdentity(identity);
+          setProfileReady(true);
+        }
+      }
+    }
+
+    void resolveProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    authLoading,
+    citizenGroups,
+    ngoRegistrations,
+    ngos,
+    registrationsHydrated,
+    user,
+    volunteers,
+  ]);
+
+  // Identity is always locked to the signed-in user's affiliation — never a free NGO picker.
+  const selectableNgos = useMemo(() => {
+    if (userProfile?.userType === "NON_PROFIT" && userProfile.organizationId) {
+      const matched = ngos.filter(
+        (ngo) => ngo.id === userProfile.organizationId,
+      );
+      if (matched.length > 0) return matched;
+      return [
+        {
+          id: userProfile.organizationId,
+          name: userProfile.organizationName || "Affiliated non-profit",
+          status: "ACTIVE" as const,
+          primaryContact: {
+            name: userProfile.displayName || "Org contact",
+            phone: "",
+            email: userProfile.email || "",
+          },
+          capabilities: [],
+          assignedVillageIds: [],
+        } satisfies NGOProfile,
+      ];
+    }
+    return [];
+  }, [ngos, userProfile]);
+
+  useEffect(() => {
+    if (!userProfile) return;
+
+    const nextId =
+      userProfile.userType === "NON_PROFIT" && userProfile.organizationId
+        ? userProfile.organizationId
+        : "";
+
+    if (activeNgoId === nextId) return;
+
+    const id = window.setTimeout(() => {
+      setActiveNgoId(nextId);
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [activeNgoId, setActiveNgoId, userProfile]);
+
+  const activeNgo = useMemo(() => {
+    if (userProfile?.userType !== "NON_PROFIT") return null;
+    return (
+      selectableNgos.find((ngo) => ngo.id === activeNgoId) ??
+      selectableNgos[0] ??
+      null
+    );
+  }, [activeNgoId, selectableNgos, userProfile?.userType]);
+
+  const individualActorName = useMemo(() => {
+    if (portalIdentity && portalIdentity.kind !== "NON_PROFIT") {
+      return portalIdentity.displayName;
+    }
+    return (
+      userProfile?.displayName?.trim() ||
+      user?.displayName?.trim() ||
+      user?.email?.trim() ||
+      "Volunteer"
+    );
+  }, [portalIdentity, user, userProfile?.displayName]);
+
+  // Real-time My Pledges listener scoped to auth user or affiliated org.
+  useEffect(() => {
+    if (!user || !userProfile) {
+      const id = window.setTimeout(() => {
+        setMyLivePledges([]);
+        setMyPledgesHydrated(false);
+      }, 0);
+      return () => window.clearTimeout(id);
+    }
+
+    const hydrationTimeoutId = window.setTimeout(() => {
+      setMyPledgesHydrated(false);
+    }, 0);
+
+    const onData = (next: NGOPledgeSubmission[]) => {
+      setMyLivePledges(next);
+      setMyPledgesHydrated(true);
+    };
+
+    const onError = (error: Error) => {
+      console.error(error);
+      setErrorMessage(error.message);
+      setMyPledgesHydrated(true);
+    };
+
+    if (
+      userProfile.userType === "NON_PROFIT" &&
+      userProfile.organizationId
+    ) {
+      const unsubscribe = subscribePledgesByOrganizationId(
+        userProfile.organizationId,
+        onData,
+        onError,
+      );
+      return () => {
+        window.clearTimeout(hydrationTimeoutId);
+        unsubscribe();
+      };
+    }
+
+    const unsubscribe = subscribePledgesByUserId(user.uid, onData, onError);
+    return () => {
+      window.clearTimeout(hydrationTimeoutId);
+      unsubscribe();
+    };
+  }, [user, userProfile]);
+
+  const resolvedActiveNgoId = activeNgo?.id ?? "";
 
   const marketplaceTickets = useMemo(
     () => tickets.filter(isMarketplaceTicket),
     [tickets],
   );
 
-  const myPledges = useMemo(
-    () => pledges.filter((pledge) => pledge.ngoId === activeNgo?.id),
-    [activeNgo?.id, pledges],
-  );
+  const myPledges = useMemo(() => {
+    const byIdentity = (pledge: NGOPledgeSubmission) => {
+      if (!user) return false;
+      if (userProfile?.userType === "NON_PROFIT" && userProfile.organizationId) {
+        return (
+          pledge.organizationId === userProfile.organizationId ||
+          pledge.ngoId === userProfile.organizationId
+        );
+      }
+      return (
+        pledge.userId === user.uid ||
+        (!pledge.userId &&
+          userProfile?.userType !== "INDIVIDUAL" &&
+          pledge.ngoId === activeNgo?.id)
+      );
+    };
+
+    if (!myPledgesHydrated) {
+      return pledges.filter(byIdentity);
+    }
+
+    // Merge live query results with legacy docs that lack userId/organizationId.
+    const liveIds = new Set(myLivePledges.map((pledge) => pledge.id));
+    const legacyMatches = pledges.filter(
+      (pledge) => byIdentity(pledge) && !liveIds.has(pledge.id),
+    );
+    return [...myLivePledges, ...legacyMatches].sort(
+      (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+    );
+  }, [
+    activeNgo?.id,
+    myLivePledges,
+    myPledgesHydrated,
+    pledges,
+    user,
+    userProfile,
+  ]);
 
   const capabilityProfiles = useMemo<OrganizationCapabilityProfile[]>(
     () =>
-      ngos.map((ngo) => {
+      selectableNgos.map((ngo) => {
         const activePledgeRows = pledges.filter(
           (pledge) =>
             pledge.ngoId === ngo.id &&
@@ -133,14 +463,43 @@ export function useNGOPledgePortalState() {
           })),
         };
       }),
-    [ngos, pledges],
+    [pledges, selectableNgos],
   );
 
-  const activeCapabilityProfile = useMemo(
-    () =>
-      capabilityProfiles.find((profile) => profile.entityId === activeNgo?.id) ?? null,
-    [activeNgo?.id, capabilityProfiles],
-  );
+  const activeCapabilityProfile = useMemo(() => {
+    if (userProfile?.userType === "INDIVIDUAL") {
+      const currentlyCommittedManpower = myPledges
+        .filter(
+          (pledge) =>
+            pledge.status !== "FULFILLED" && pledge.status !== "REJECTED",
+        )
+        .reduce((sum, pledge) => sum + (pledge.pledgedManpowerCount ?? 0), 0);
+      const maxManpowerCapacity = 4;
+      return {
+        entityId: user?.uid ?? "individual",
+        entityName: individualActorName,
+        entityType: "INDIVIDUAL_VOLUNTEER" as const,
+        maxManpowerCapacity,
+        currentlyCommittedManpower,
+        netAvailableManpower: Math.max(
+          0,
+          maxManpowerCapacity - currentlyCommittedManpower,
+        ),
+        activePledges: [],
+      } satisfies OrganizationCapabilityProfile;
+    }
+    return (
+      capabilityProfiles.find((profile) => profile.entityId === activeNgo?.id) ??
+      null
+    );
+  }, [
+    activeNgo?.id,
+    capabilityProfiles,
+    individualActorName,
+    myPledges,
+    user?.uid,
+    userProfile?.userType,
+  ]);
 
   const pendingCustomOffers = useMemo(
     () =>
@@ -181,10 +540,24 @@ export function useNGOPledgePortalState() {
     [pledges],
   );
 
+  const identityLocked = true;
+
   const submitPledge = useCallback(
     async (input: PledgeSubmitPayload) => {
-      if (!activeNgo) {
-        setErrorMessage("Select an NGO identity before pledging.");
+      if (!user) {
+        setErrorMessage("Sign in to submit a pledge.");
+        return false;
+      }
+
+      const isIndividual = userProfile?.userType !== "NON_PROFIT";
+      if (isAdminSourcedMode() && isIndividual) {
+        setErrorMessage(
+          "Admin-sourced mode: only verified non-profit partners can pledge.",
+        );
+        return false;
+      }
+      if (!isIndividual && !activeNgo) {
+        setErrorMessage("Your non-profit affiliation is required before pledging.");
         return false;
       }
 
@@ -205,13 +578,42 @@ export function useNGOPledgePortalState() {
         return false;
       }
 
+      const actorId = isIndividual
+        ? `user-${user.uid}`
+        : (activeNgo?.id as string);
+      const actorName = isIndividual
+        ? individualActorName
+        : (activeNgo?.name as string);
+      const entityType = isIndividual
+        ? ("INDIVIDUAL_VOLUNTEER" as const)
+        : ("REGISTERED_NGO" as const);
+      const organizationId = isIndividual
+        ? null
+        : (userProfile?.organizationId ?? activeNgo?.id ?? null);
+
+      const linkedTicket = input.ticketId
+        ? tickets.find((entry) => entry.id === input.ticketId)
+        : undefined;
+      const needTitle = linkedTicket
+        ? buildNeedTitle(linkedTicket)
+        : input.targetVillageName
+          ? `${input.targetVillageName} custom offer`
+          : "District pool offer";
+
       const needsReview = hasCustom;
       const draft: NGOPledgeSubmission = {
         ...input,
         id: `pledge-${Date.now()}`,
-        ngoId: activeNgo.id,
-        ngoName: activeNgo.name,
-        entityType: "REGISTERED_NGO",
+        ngoId: actorId,
+        ngoName: actorName,
+        userId: user.uid,
+        organizationId,
+        needId: input.ticketId ?? linkedTicket?.id,
+        needTitle,
+        itemsPledged: buildItemsPledged(matched, custom),
+        ticketMatchedItems: matched,
+        customItems: custom,
+        entityType,
         status: needsReview && !hasMatched ? "OFFERED" : "CONFIRMED",
         adminApprovalStatus: needsReview ? "PENDING_REVIEW" : "APPROVED",
         createdAt: new Date().toISOString(),
@@ -242,6 +644,76 @@ export function useNGOPledgePortalState() {
           upsertDistrictTicket(persistedTicket),
           upsertPledgeSubmission(draft),
         ]);
+
+        const locationName =
+          linkedTicket?.villageName?.trim() ||
+          draft.targetVillageName?.trim() ||
+          draft.targetDistrict?.trim() ||
+          "Assam";
+        const impactQuantity = sumPledgeImpactQuantity({
+          ticketMatchedItems: matched,
+          customItems: custom,
+        });
+        const impactUnit = primaryImpactUnit({
+          ticketMatchedItems: matched,
+          customItems: custom,
+        });
+        const itemSummary =
+          matched.find((item) => item.pledgedQuantity > 0)?.itemName ||
+          custom[0]?.itemName ||
+          impactUnit;
+        void recordActivityEvent({
+          title:
+            impactQuantity > 0
+              ? `${impactQuantity} ${itemSummary} pledged for ${locationName}`
+              : `${itemSummary} pledged for ${locationName}`,
+          category: "WAREHOUSE_PLEDGE",
+          status: "IN_PROGRESS",
+          locationName,
+          description: `Unmet need claimed via pledge ${draft.id} for ${locationName}.`,
+          impactQuantity: impactQuantity > 0 ? impactQuantity : null,
+          impactUnit,
+        }).catch(() => undefined);
+
+        // Community goal: marketplace need(s) newly covered to 100%.
+        if (linkedTicket) {
+          for (const covered of newlyFullyCoveredItems(
+            linkedTicket,
+            result.ticket,
+          )) {
+            const donorCount = Math.max(
+              1,
+              countTicketDonors(result.ticket),
+            );
+            const openedMs = Date.parse(linkedTicket.createdAt);
+            const completionDurationMs = Number.isFinite(openedMs)
+              ? Math.max(0, Date.now() - openedMs)
+              : null;
+            const hero = resolveHeroAccolade({
+              progressPercent: 100,
+              impactQuantity: covered.totalRequestedQuantity,
+              donorCount,
+              completionDurationMs,
+            });
+            void recordActivityEvent({
+              title: communityGoalTitle(locationName, covered.itemName),
+              category: "VILLAGE_NEED",
+              status: "COMPLETED",
+              locationName,
+              description: `${covered.itemName} demand for ${locationName} is fully covered.`,
+              isMilestone: true,
+              milestoneType: "GOAL_100_PERCENT",
+              badgeLabel: hero?.badgeText ?? communityGoalBadgeLabel(covered.itemName),
+              impactQuantity: covered.totalRequestedQuantity,
+              impactUnit: covered.unit || covered.itemName,
+              progressPercent: 100,
+              donorCount,
+              completionDurationMs,
+              heroAccolade: hero?.kind ?? "MISSION_CLEARED",
+            }).catch(() => undefined);
+          }
+        }
+
         await loadPortalSnapshot();
         setFlashMessage(
           needsReview
@@ -263,7 +735,16 @@ export function useNGOPledgePortalState() {
       setErrorMessage("");
       return true;
     },
-    [activeCapabilityProfile?.netAvailableManpower, activeNgo, loadPortalSnapshot, tickets],
+    [
+      activeCapabilityProfile?.netAvailableManpower,
+      activeNgo,
+      individualActorName,
+      loadPortalSnapshot,
+      tickets,
+      user,
+      userProfile?.organizationId,
+      userProfile?.userType,
+    ],
   );
 
   const acceptCustomOfferToVillage = useCallback(
@@ -297,10 +778,26 @@ export function useNGOPledgePortalState() {
           adminApprovalStatus: "APPROVED",
           status: "CONFIRMED",
           ticketId: ticket.id,
+          needId: ticket.id,
+          needTitle: buildNeedTitle(ticket),
           targetVillageId: ticket.villageId,
           targetVillageName: ticket.villageName,
         }),
       ]);
+
+      const itemSummary = pledge.customItems?.[0]?.itemName || "Relief supplies";
+      const qty = pledge.customItems?.[0]?.quantity;
+      void recordActivityEvent({
+        title:
+          qty != null
+            ? `${qty} ${itemSummary} pledged for ${ticket.villageName}`
+            : `${itemSummary} pledged for ${ticket.villageName}`,
+        category: "WAREHOUSE_PLEDGE",
+        status: "IN_PROGRESS",
+        locationName: ticket.villageName,
+        description: `Custom offer ${pledgeId} accepted and assigned to ${ticket.villageName}.`,
+      }).catch(() => undefined);
+
       await loadPortalSnapshot();
       setFlashMessage(
         `Accepted custom offer and assigned items to ${ticket.villageName} (${ticket.id}).`,
@@ -363,7 +860,9 @@ export function useNGOPledgePortalState() {
 
   const markPledgeInTransit = useCallback(
     async (pledgeId: string, vehicleNumber: string, driverPhone: string) => {
-      const pledge = pledges.find((entry) => entry.id === pledgeId);
+      const pledge =
+        myLivePledges.find((entry) => entry.id === pledgeId) ||
+        pledges.find((entry) => entry.id === pledgeId);
       if (!pledge) {
         setErrorMessage("Pledge not found.");
         return false;
@@ -404,12 +903,40 @@ export function useNGOPledgePortalState() {
           dispatchDriverPhone: driverPhone,
         }),
       ]);
+
+      const locationName =
+        pledge.targetVillageName?.trim() ||
+        pledge.targetDistrict?.trim() ||
+        "Assam";
+      const impactQuantity = sumPledgeImpactQuantity({
+        ticketMatchedItems: pledge.ticketMatchedItems,
+        customItems: pledge.customItems,
+        itemsPledged: pledge.itemsPledged,
+      });
+      const impactUnit = primaryImpactUnit({
+        ticketMatchedItems: pledge.ticketMatchedItems,
+        customItems: pledge.customItems,
+      });
+      const title =
+        impactQuantity > 0
+          ? `${impactQuantity} ${impactUnit} En Route to ${locationName}`
+          : `${impactUnit} En Route to ${locationName}`;
+      void recordActivityEvent({
+        title,
+        category: "WAREHOUSE_PLEDGE",
+        status: "IN_PROGRESS",
+        locationName,
+        description: `Pledge ${pledgeId} dispatched via ${vehicleNumber} toward ${locationName}.`,
+        impactQuantity: impactQuantity > 0 ? impactQuantity : null,
+        impactUnit,
+      }).catch(() => undefined);
+
       await loadPortalSnapshot();
       setFlashMessage(result.message);
       setErrorMessage("");
       return true;
     },
-    [loadPortalSnapshot, pledges, tickets],
+    [loadPortalSnapshot, myLivePledges, pledges, tickets],
   );
 
   const completePledgeDelivery = useCallback(
@@ -418,7 +945,9 @@ export function useNGOPledgePortalState() {
       proofOfDeliveryUrl: string,
       fieldConfirmationCode?: string,
     ) => {
-      const pledge = pledges.find((entry) => entry.id === pledgeId);
+      const pledge =
+        myLivePledges.find((entry) => entry.id === pledgeId) ||
+        pledges.find((entry) => entry.id === pledgeId);
       if (!pledge) {
         setErrorMessage("Pledge not found.");
         return false;
@@ -462,16 +991,116 @@ export function useNGOPledgePortalState() {
           fieldConfirmationCode,
         }),
       ]);
+
+      const locationName =
+        pledge.targetVillageName?.trim() ||
+        pledge.targetDistrict?.trim() ||
+        ticket.villageName?.trim() ||
+        "Assam";
+      const impactQuantity = sumPledgeImpactQuantity({
+        ticketMatchedItems: pledge.ticketMatchedItems,
+        customItems: pledge.customItems,
+        itemsPledged: pledge.itemsPledged,
+      });
+      const impactUnit = primaryImpactUnit({
+        ticketMatchedItems: pledge.ticketMatchedItems,
+        customItems: pledge.customItems,
+      });
+      const entityName = pledge.ngoName?.trim() || "Relief partner";
+      const quantity = impactQuantity > 0 ? impactQuantity : 1;
+
+      const credit = await creditEntityContribution({
+        userId: pledge.userId,
+        organizationId: pledge.organizationId,
+        units: quantity,
+        unitLabel: impactUnit,
+      });
+      const crossedThresholds = credit.ok ? credit.data.crossedThresholds : [];
+      const milestone = resolveDeliveryMilestoneDecorations({
+        crossedThresholds,
+        unitLabel: impactUnit,
+        rapid: isRapidResponse(pledge.createdAt),
+      });
+
+      const progressContext = milestone.badgeLabel
+        ? milestone.milestoneType === "ENTITY_THRESHOLD"
+          ? "Entity milestone unlocked"
+          : "Rapid response"
+        : "Need fully covered";
+
+      const proofUrl =
+        proofOfDeliveryUrl.startsWith("http") ||
+        proofOfDeliveryUrl.startsWith("/")
+          ? proofOfDeliveryUrl
+          : null;
+
+      void recordActivityEvent({
+        title: formatImpactDeliveryTitle({
+          entityName,
+          quantity,
+          unit: impactUnit,
+          locationName,
+          progressContext,
+        }),
+        category: "VILLAGE_NEED",
+        status: "COMPLETED",
+        locationName,
+        description: `Delivery confirmed for pledge ${pledgeId} at ${locationName}.`,
+        proofImageUrl: proofUrl,
+        impactQuantity: quantity,
+        impactUnit,
+        isMilestone: milestone.isMilestone,
+        milestoneType: milestone.milestoneType,
+        badgeLabel: milestone.badgeLabel,
+      }).catch(() => undefined);
+
+      // Community goal milestone when delivery closes the village need.
+      for (const covered of newlyFullyCoveredItems(ticket, result.ticket)) {
+        const donorCount = Math.max(1, countTicketDonors(result.ticket));
+        const openedMs = Date.parse(ticket.createdAt);
+        const completionDurationMs = Number.isFinite(openedMs)
+          ? Math.max(0, Date.now() - openedMs)
+          : null;
+        const hero = resolveHeroAccolade({
+          progressPercent: 100,
+          impactQuantity: covered.totalRequestedQuantity,
+          donorCount,
+          completionDurationMs,
+        });
+        void recordActivityEvent({
+          title: communityGoalTitle(locationName, covered.itemName),
+          category: "VILLAGE_NEED",
+          status: "COMPLETED",
+          locationName,
+          description: `${covered.itemName} demand for ${locationName} is fully covered.`,
+          isMilestone: true,
+          milestoneType: "GOAL_100_PERCENT",
+          badgeLabel: hero?.badgeText ?? communityGoalBadgeLabel(covered.itemName),
+          impactQuantity: covered.totalRequestedQuantity,
+          impactUnit: covered.unit || covered.itemName,
+          progressPercent: 100,
+          donorCount,
+          completionDurationMs,
+          heroAccolade: hero?.kind ?? "MISSION_CLEARED",
+          proofImageUrl: proofUrl,
+        }).catch(() => undefined);
+      }
+
       await loadPortalSnapshot();
       setFlashMessage(result.message);
       setErrorMessage("");
       return true;
     },
-    [loadPortalSnapshot, pledges, tickets],
+    [loadPortalSnapshot, myLivePledges, pledges, tickets],
   );
 
   return {
-    ngos,
+    userProfile,
+    portalIdentity,
+    profileReady,
+    identityLocked,
+    individualActorName,
+    ngos: selectableNgos,
     activeNgo,
     activeNgoId: resolvedActiveNgoId,
     setActiveNgoId,
@@ -492,5 +1121,6 @@ export function useNGOPledgePortalState() {
     completePledgeDelivery,
     capabilityProfiles,
     activeCapabilityProfile,
+    refreshPortal: loadPortalSnapshot,
   };
 }

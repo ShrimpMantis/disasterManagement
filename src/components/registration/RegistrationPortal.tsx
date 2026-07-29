@@ -15,6 +15,7 @@ import {
   findRegistrationForUser,
   useRegistrationState,
 } from "@/hooks/useRegistrationState";
+import { useOperationalMode } from "@/hooks/useOperationalMode";
 import { listAffiliationNgoOptions } from "@/lib/registration/affiliationNgos";
 import { fetchNgoCoordinationSnapshot } from "@/actions/ngoCoordinationActions";
 import {
@@ -65,6 +66,7 @@ const inputClass =
 
 export function RegistrationPortal() {
   const { user } = useAuth();
+  const { isCrowdMode, isAdminSourcedMode } = useOperationalMode();
   const {
     hydrated,
     volunteers,
@@ -302,7 +304,9 @@ export function RegistrationPortal() {
         availabilityStatus: availability,
       });
       setSuccess(
-        `Registration received (${entry.volunteerId}). A district officer will verify your profile before deployment.`,
+        isCrowdMode
+          ? `Registration activated immediately (${entry.volunteerId}).`
+          : `Registration received (${entry.volunteerId}). A district officer will verify your profile before deployment.`,
       );
     } catch (submitError) {
       setError(
@@ -372,7 +376,9 @@ export function RegistrationPortal() {
         ownedAssetsSummary: assetsSummary.trim() || undefined,
       });
       setSuccess(
-        `NGO registration received (${entry.ngoId}). Pending district officer verification before roster activation.`,
+        isCrowdMode
+          ? `NGO registration activated immediately (${entry.ngoId}).`
+          : `NGO registration received (${entry.ngoId}). Pending district officer verification before roster activation.`,
       );
     } catch (submitError) {
       setError(
@@ -432,7 +438,9 @@ export function RegistrationPortal() {
         capabilities: groupCapabilities,
       });
       setSuccess(
-        `Citizen group registration received (${entry.groupId}). A district coordinator will verify the group leader by phone before activation.`,
+        isCrowdMode
+          ? `Citizen group registration activated immediately (${entry.groupId}).`
+          : `Citizen group registration received (${entry.groupId}). A district coordinator will verify the group leader by phone before activation.`,
       );
     } catch (submitError) {
       setError(
@@ -462,6 +470,28 @@ export function RegistrationPortal() {
     );
   }
 
+  if (isAdminSourcedMode) {
+    return (
+      <div className="mx-auto w-full max-w-3xl">
+        <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-6 shadow-[var(--shadow)] backdrop-blur-md sm:p-8">
+          <div className="mb-1 inline-flex items-center gap-2 text-[var(--accent)]">
+            <ShieldCheck className="h-4 w-4" aria-hidden />
+            <span className="text-xs font-medium uppercase tracking-[0.14em]">
+              Workforce onboarding control
+            </span>
+          </div>
+          <h1 className="font-[family-name:var(--font-fraunces)] text-3xl tracking-tight text-[var(--ink)]">
+            Public registration is disabled
+          </h1>
+          <p className="mt-2 text-sm text-[var(--ink-muted)]">
+            This deployment requires district/officer verification before profiles
+            can join the active roster. Ask an organization admin for access.
+          </p>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto w-full max-w-3xl">
       <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-6 shadow-[var(--shadow)] backdrop-blur-md sm:p-8">
@@ -475,9 +505,9 @@ export function RegistrationPortal() {
           Volunteer & partner registration
         </h1>
         <p className="mt-2 text-sm text-[var(--ink-muted)]">
-          Self-register for verification by district administrators. Approved
-          profiles join the active deployment roster. You can register once as a
-          volunteer, NGO, or citizen group.
+          {isCrowdMode
+            ? "Self-register and activate immediately in crowdsourced mode. You can register once as a volunteer, NGO, or citizen group."
+            : "Self-register for verification by district administrators. Approved profiles join the active deployment roster. You can register once as a volunteer, NGO, or citizen group."}
         </p>
 
         <div role="tablist" className="mt-6 grid gap-2 sm:grid-cols-3">

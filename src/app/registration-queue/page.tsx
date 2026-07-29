@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
+import { FeatureGate } from "@/components/features/FeatureGate";
 import { VerificationQueueGrid } from "@/components/registration/VerificationQueueGrid";
 import Link from "next/link";
 
@@ -30,13 +31,23 @@ export default function RegistrationQueuePage() {
           </p>
         </header>
 
-        {flash ? (
-          <div className="rounded-xl border border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-2 text-sm text-[var(--accent-strong)]">
-            {flash}
-          </div>
-        ) : null}
+        <FeatureGate
+          mode="ADMIN_SOURCED"
+          fallback={
+            <p className="mt-6 text-sm text-[var(--ink-muted)]">
+              Registration queue is disabled in crowdsourced mode. New
+              registrations activate immediately.
+            </p>
+          }
+        >
+          {flash ? (
+            <div className="rounded-xl border border-[var(--accent)] bg-[var(--accent-soft)] px-3 py-2 text-sm text-[var(--accent-strong)]">
+              {flash}
+            </div>
+          ) : null}
 
-        <VerificationQueueGrid onFlash={setFlash} />
+          <VerificationQueueGrid onFlash={setFlash} />
+        </FeatureGate>
       </main>
     </AppShell>
   );

@@ -32,6 +32,7 @@ import type {
 } from "@/types/workforceLogistics";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { getOperationalMode } from "@/lib/features/operationalMode";
 import { DistrictDashboardMap } from "@/components/maps/DistrictDashboardMap";
 import { ConsolidatedReliefCounterTile } from "@/components/dashboard/ConsolidatedReliefCounterTile";
 import { EmergencyDirectoryTile } from "@/components/dashboard/EmergencyDirectoryTile";
@@ -183,15 +184,20 @@ export function DashboardTileGrid({
         <span className="inline-flex animate-pulse items-center rounded-full border border-[#fecaca] bg-[#fef2f2] px-3 py-1 font-semibold text-[#b91c1c]">
           Unassigned P1 SOS: {sosTriage.unassignedCriticalCount}
         </span>
-        <span className="rounded-full border border-[#fecaca] bg-[#fef2f2] px-3 py-1 font-semibold text-[#b91c1c]">
-          Open transport requests: {dispatch.openRequestCount}
-        </span>
         <Link
-          href="/registration-queue"
-          className="rounded-full border border-[#fed7aa] bg-[#fff7ed] px-3 py-1 font-semibold text-[#9a3412]"
+          href="/transport"
+          className="rounded-full border border-[#fecaca] bg-[#fef2f2] px-3 py-1 font-semibold text-[#b91c1c]"
         >
-          Registration queue
+          Open transport requests: {dispatch.openRequestCount}
         </Link>
+        {getOperationalMode() === "ADMIN_SOURCED" ? (
+          <Link
+            href="/registration-queue"
+            className="rounded-full border border-[#fed7aa] bg-[#fff7ed] px-3 py-1 font-semibold text-[#9a3412]"
+          >
+            Registration queue
+          </Link>
+        ) : null}
       </div>
 
       <DistrictDashboardMap

@@ -1,11 +1,19 @@
-import type { InputHTMLAttributes } from "react";
+import type { InputHTMLAttributes, ReactNode } from "react";
 
 type AuthFieldProps = InputHTMLAttributes<HTMLInputElement> & {
   label: string;
   error?: string;
+  hint?: ReactNode;
 };
 
-export function AuthField({ label, error, id, className = "", ...props }: AuthFieldProps) {
+export function AuthField({
+  label,
+  error,
+  hint,
+  id,
+  className = "",
+  ...props
+}: AuthFieldProps) {
   const fieldId = id ?? props.name;
 
   return (
@@ -18,6 +26,9 @@ export function AuthField({ label, error, id, className = "", ...props }: AuthFi
         } ${className}`}
         {...props}
       />
+      {hint && !error ? (
+        <span className="mt-1.5 block text-sm text-[var(--ink-muted)]">{hint}</span>
+      ) : null}
       {error ? <span className="mt-1.5 block text-sm text-[var(--danger)]">{error}</span> : null}
     </label>
   );

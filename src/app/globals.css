@@ -111,3 +111,113 @@ body::before {
 .animate-pulse-line {
   animation: pulse-line 3.2s ease-in-out infinite;
 }
+
+/* Hero accolade micro-confetti — CSS particles only (no GIF/meme assets). */
+@keyframes hero-confetti-burst {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--hero-dx), var(--hero-dy), 0) scale(1);
+  }
+}
+
+.hero-confetti {
+  overflow: hidden;
+}
+
+.hero-confetti-bit {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  opacity: 0;
+  animation: hero-confetti-burst 1s ease-out forwards;
+  background: #fff;
+}
+
+.hero-confetti-bit.bit-1 {
+  --hero-dx: -72px;
+  --hero-dy: -48px;
+  background: #34d399;
+  animation-delay: 0ms;
+}
+.hero-confetti-bit.bit-2 {
+  --hero-dx: -36px;
+  --hero-dy: -64px;
+  background: #fbbf24;
+  animation-delay: 40ms;
+  border-radius: 999px;
+}
+.hero-confetti-bit.bit-3 {
+  --hero-dx: 12px;
+  --hero-dy: -70px;
+  background: #a78bfa;
+  animation-delay: 80ms;
+}
+.hero-confetti-bit.bit-4 {
+  --hero-dx: 54px;
+  --hero-dy: -52px;
+  background: #f472b6;
+  animation-delay: 30ms;
+  border-radius: 999px;
+}
+.hero-confetti-bit.bit-5 {
+  --hero-dx: 78px;
+  --hero-dy: -18px;
+  background: #60a5fa;
+  animation-delay: 70ms;
+}
+.hero-confetti-bit.bit-6 {
+  --hero-dx: 64px;
+  --hero-dy: 28px;
+  background: #fde68a;
+  animation-delay: 110ms;
+}
+.hero-confetti-bit.bit-7 {
+  --hero-dx: 20px;
+  --hero-dy: 42px;
+  background: #6ee7b7;
+  animation-delay: 50ms;
+  border-radius: 999px;
+}
+.hero-confetti-bit.bit-8 {
+  --hero-dx: -28px;
+  --hero-dy: 38px;
+  background: #c4b5fd;
+  animation-delay: 90ms;
+}
+.hero-confetti-bit.bit-9 {
+  --hero-dx: -68px;
+  --hero-dy: 12px;
+  background: #fdba74;
+  animation-delay: 20ms;
+}
+.hero-confetti-bit.bit-10 {
+  --hero-dx: -50px;
+  --hero-dy: -20px;
+  background: #fff;
+  animation-delay: 60ms;
+  border-radius: 999px;
+}
+.hero-confetti-bit.bit-11 {
+  --hero-dx: 40px;
+  --hero-dy: -30px;
+  background: #4ade80;
+  animation-delay: 100ms;
+}
+.hero-confetti-bit.bit-12 {
+  --hero-dx: -8px;
+  --hero-dy: -40px;
+  background: #fcd34d;
+  animation-delay: 10ms;
+  width: 4px;
+  height: 8px;
+}

@@ -17,6 +17,7 @@ import {
   TICKET_PRIORITY_LABELS,
   TICKET_STATUS_LABELS,
 } from "@/types/ticket";
+import { TicketVerificationBadge } from "@/components/tickets/TicketVerificationBadge";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -126,6 +127,19 @@ export function TicketQueueGrid({
         minWidth: 110,
         cellRenderer: (params: ICellRendererParams<ReliefTicket, TicketPriority>) =>
           params.value ? <PriorityBadge priority={params.value} /> : null,
+      },
+      {
+        headerName: "Verification",
+        flex: 1.1,
+        minWidth: 150,
+        valueGetter: (params) => params.data?.verificationStatus ?? "CROWD_REPORTED",
+        cellRenderer: (params: ICellRendererParams<ReliefTicket>) =>
+          params.data ? (
+            <TicketVerificationBadge
+              status={params.data.verificationStatus}
+              upvoteCount={params.data.upvoteCount}
+            />
+          ) : null,
       },
       {
         headerName: "Item Summary",

@@ -5,6 +5,13 @@ export type PledgeStatus =
   | "FULFILLED"
   | "REJECTED";
 
+/** Marketplace-facing status labels for My Pledges & Shipments. */
+export type MarketplacePledgeStatus =
+  | "PLEDGED"
+  | "IN_TRANSIT"
+  | "DELIVERED"
+  | "CANCELLED";
+
 export type PledgeType = "TICKET_MATCHED" | "SPONTANEOUS_OFFER";
 
 export type AdminApprovalStatus = "APPROVED" | "PENDING_REVIEW" | "REJECTED";
@@ -38,10 +45,28 @@ export interface CustomPledgeItem {
   description?: string; // e.g., "Assorted winter clothing sizes S-XL"
 }
 
+/** Normalized item lines stored on pledge docs for marketplace history. */
+export interface PledgedItemDetail {
+  itemName: string;
+  category: string;
+  quantity: number;
+  unit: string;
+}
+
 export interface NGOPledgeSubmission {
   id: string;
   ngoId: string;
   ngoName: string;
+  /** Firebase Auth uid of the pledging user. */
+  userId?: string;
+  /** Affiliated non-profit id when pledging on behalf of an org. */
+  organizationId?: string | null;
+  /** Marketplace unmet-need / ticket document id. */
+  needId?: string;
+  /** Marketplace need title shown on My Pledges. */
+  needTitle?: string;
+  /** Flattened item quantities for dashboard history. */
+  itemsPledged?: PledgedItemDetail[];
   entityType?: "REGISTERED_NGO" | "CITIZEN_GROUP" | "INDIVIDUAL_VOLUNTEER";
   pledgeType: PledgeType;
   ticketId?: string; // Optional: null if general district offer
@@ -89,6 +114,57 @@ export const PLEDGE_STATUS_LABELS: Record<PledgeStatus, string> = {
   FULFILLED: "Fulfilled",
   REJECTED: "Rejected",
 };
+
+export const MARKETPLACE_PLEDGE_STATUS_LABELS: Record<
+  MarketplacePledgeStatus,
+  string
+> = {
+  PLEDGED: "Pledged",
+  IN_TRANSIT: "In Transit",
+  DELIVERED: "Delivered",
+  CANCELLED: "Cancelled",
+};
+
+export function toMarketplacePledgeStatus(
+  status: PledgeStatus,
+): MarketplacePledgeStatus {
+  if (status === "IN_TRANSIT") return "IN_TRANSIT";
+  if (status === "FULFILLED") return "DELIVERED";
+  if (status === "REJECTED") return "CANCELLED";
+  return "PLEDGED";
+}
+
+export function buildItemsPledged(
+  matched: ItemPledgeInput[] = [],
+  custom: CustomPledgeItem[] = [],
+): PledgedItemDetail[] {
+  const fromMatched = matched
+    .filter((item) => item.pledgedQuantity > 0)
+    .map((item) => ({
+      itemName: item.itemName,
+      category: item.category,
+      quantity: item.pledgedQuantity,
+      unit: item.unit,
+    }));
+  const fromCustom = custom.map((item) => ({
+    itemName: item.itemName,
+    category: item.category,
+    quantity: item.quantity,
+    unit: item.unit,
+  }));
+  return [...fromMatched, ...fromCustom];
+}
+
+export function resolveNeedTitle(pledge: NGOPledgeSubmission): string {
+  if (pledge.needTitle?.trim()) return pledge.needTitle.trim();
+  if (pledge.targetVillageName?.trim()) {
+    return `${pledge.targetVillageName} unmet need${
+      pledge.ticketId ? ` (${pledge.ticketId})` : ""
+    }`;
+  }
+  if (pledge.ticketId) return `Unmet need ${pledge.ticketId}`;
+  return "District pool offer";
+}
 
 export const ADMIN_APPROVAL_LABELS: Record<AdminApprovalStatus, string> = {
   APPROVED: "Approved",

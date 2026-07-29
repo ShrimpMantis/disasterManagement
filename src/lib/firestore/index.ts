@@ -35,4 +35,17 @@ export {
   geohashQueryBounds,
   slugifyDistrictId,
 } from "@/lib/firestore/geohash";
+export {
+  upsertPledgeSubmission,
+  updatePledgeSubmission,
+  subscribePledgesByUserId,
+  subscribePledgesByOrganizationId,
+} from "@/lib/firestore/pledges";
+export {
+  getUserProfile,
+  subscribeUserProfile,
+  upsertUserProfile,
+  ensureUserProfile,
+} from "@/lib/firestore/users";
+export { subscribeActivityEvents } from "@/lib/firestore/activityEvents";
 export { listenQuery, listenDoc } from "@/lib/firestore/listeners";

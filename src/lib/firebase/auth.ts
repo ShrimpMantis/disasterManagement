@@ -78,12 +78,30 @@ export function clearRecaptcha() {
     // ignore cleanup errors
   }
   window.recaptchaVerifier = undefined;
+
+  // RecaptchaVerifier.clear() can remove the container node React owns.
+  // Recreate an empty mount point so later phone attempts still work.
+  const existing = document.getElementById("recaptcha-container");
+  if (!existing) {
+    const mount = document.createElement("div");
+    mount.id = "recaptcha-container";
+    document.body.appendChild(mount);
+  } else {
+    existing.replaceChildren();
+  }
 }
 
 export async function sendPhoneOtp(phoneNumber: string): Promise<ConfirmationResult> {
   const auth = getFirebaseAuth();
-  const verifier = ensureRecaptcha();
+
   const e164 = toE164Phone(phoneNumber);
+  if (!e164) {
+    throw new Error(
+      "Country code is required. Start with + and your country code (e.g. +919876543210).",
+    );
+  }
+
+  const verifier = ensureRecaptcha();
 
   try {
     return await signInWithPhoneNumber(auth, e164, verifier);
