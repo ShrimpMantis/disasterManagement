@@ -648,7 +648,7 @@ export function EmergencyDirectoryModule({
         ))}
       </div>
 
-      <div className="h-[min(48vh,460px)] overflow-hidden rounded-xl border border-[var(--line)] bg-white/70 p-2">
+      <div className="h-[min(38dvh,280px)] sm:h-[min(48vh,460px)] overflow-hidden rounded-xl border border-[var(--line)] bg-white/70 p-2">
         {tab === "hospitals" ? (
           <AgGridReact<HospitalRow>
             theme={gridTheme}

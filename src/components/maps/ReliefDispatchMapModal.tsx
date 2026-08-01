@@ -222,14 +222,14 @@ export function ReliefDispatchMapModal({
   const apiKey = getGoogleMapsApiKey();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(21,32,43,0.45)] px-4 py-6">
-      <div className="flex h-[min(85vh,720px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-white shadow-[var(--shadow)]">
-        <header className="flex items-start justify-between gap-3 border-b border-[var(--line)] px-5 py-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.14em] text-[var(--ink-muted)]">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(21,32,43,0.45)] px-0 py-0 sm:items-center sm:px-4 sm:py-6">
+      <div className="flex h-[min(92dvh,720px)] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl border border-[var(--line)] bg-white shadow-[var(--shadow)] sm:h-[min(85vh,720px)] sm:rounded-2xl">
+        <header className="flex items-start justify-between gap-3 border-b border-[var(--line)] px-4 py-3 sm:px-5 sm:py-4">
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--ink-muted)] sm:text-xs">
               Relief & supply route map
             </p>
-            <h3 className="font-[family-name:var(--font-fraunces)] text-2xl text-[var(--ink)]">
+            <h3 className="truncate font-[family-name:var(--font-fraunces)] text-xl text-[var(--ink)] sm:text-2xl">
               {destination.label}
             </h3>
           </div>

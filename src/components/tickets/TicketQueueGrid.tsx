@@ -238,7 +238,7 @@ export function TicketQueueGrid({
   );
 
   return (
-    <div className="h-[min(70vh,720px)] w-full overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-2 shadow-[var(--shadow)]">
+    <div className="h-[min(50dvh,480px)] w-full overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-2 shadow-[var(--shadow)] sm:h-[min(70vh,720px)]">
       <AgGridReact<ReliefTicket>
         theme={gridTheme}
         rowData={tickets}

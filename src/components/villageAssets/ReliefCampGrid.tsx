@@ -164,7 +164,7 @@ export function ReliefCampGrid({ camps }: ReliefCampGridProps) {
         </p>
       </div>
 
-      <div className="h-[min(60vh,560px)] overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-2 shadow-[var(--shadow)]">
+      <div className="h-[min(42dvh,320px)] sm:h-[min(60vh,560px)] overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-2 shadow-[var(--shadow)]">
         <AgGridReact<ReliefCampFacility>
           theme={gridTheme}
           rowData={camps}

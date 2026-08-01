@@ -104,14 +104,14 @@ function CoverageGoogleMap({
 
   if (!apiKey) {
     return (
-      <div className="min-h-[480px]">
+      <div className="min-h-[240px] sm:min-h-[360px] lg:min-h-[480px]">
         <MapsApiKeyMissing title="Coverage map unavailable" />
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-[480px] overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow)]">
+    <div className="relative min-h-[240px] overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow)] sm:min-h-[360px] lg:min-h-[480px]">
       <APIProvider
         apiKey={apiKey}
         libraries={["marker", "routes", "geometry"]}
@@ -121,7 +121,7 @@ function CoverageGoogleMap({
           defaultZoom={DEFAULT_MAP_ZOOM}
           mapId={getGoogleMapsMapId()}
           gestureHandling="greedy"
-          className="h-[min(70vh,640px)] w-full"
+          className="map-stage-tall"
         >
           {villages.map((village) => {
             const isHighlighted = village.id === highlightedVillageId;
@@ -318,7 +318,7 @@ export function GeographicCoverageView({
               Geographic coverage
             </span>
           </div>
-          <h2 className="font-[family-name:var(--font-fraunces)] text-2xl tracking-tight text-[var(--ink)] sm:text-3xl">
+          <h2 className="font-[family-name:var(--font-fraunces)] text-xl tracking-tight text-[var(--ink)] sm:text-2xl lg:text-3xl">
             Assignment & unserved zone map
           </h2>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
@@ -370,8 +370,8 @@ export function GeographicCoverageView({
           onSelectVillage={onSelectVillage}
         />
       ) : (
-        <div className="min-h-[480px] overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow)]">
-          <div className="h-[min(70vh,640px)] w-full p-2">
+        <div className="min-h-[240px] overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow)] sm:min-h-[360px] lg:min-h-[480px]">
+          <div className="map-stage-tall w-full p-2">
             <AgGridReact<VillageRow>
               theme={gridTheme}
               rowData={rowData}

@@ -110,7 +110,7 @@ export function WarehouseFocusMap({
         </p>
       </div>
 
-      <div className="relative min-h-[280px] flex-1">
+      <div className="relative min-h-[200px] flex-1 sm:min-h-[280px]">
         {!apiKey ? (
           <MapsApiKeyMissing />
         ) : (

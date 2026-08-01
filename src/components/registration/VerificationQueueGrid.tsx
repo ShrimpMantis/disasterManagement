@@ -534,7 +534,7 @@ export function VerificationQueueGrid({ onFlash }: VerificationQueueGridProps) {
         </div>
       </div>
 
-      <div className="h-[min(60vh,560px)] overflow-hidden rounded-xl border border-[var(--line)] bg-white/70 p-2">
+      <div className="h-[min(42dvh,320px)] sm:h-[min(60vh,560px)] overflow-hidden rounded-xl border border-[var(--line)] bg-white/70 p-2">
         {tab === "volunteers" ? (
           <AgGridReact<VolunteerRegistration>
             theme={gridTheme}

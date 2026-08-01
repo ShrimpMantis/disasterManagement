@@ -382,7 +382,7 @@ export function WarehouseDirectoryGrid({
         </div>
       ) : null}
 
-      <div className="h-[min(62vh,640px)] w-full overflow-hidden rounded-xl border border-[var(--line)] bg-white/70 p-2">
+      <div className="h-[min(45dvh,360px)] sm:h-[min(62vh,640px)] w-full overflow-hidden rounded-xl border border-[var(--line)] bg-white/70 p-2">
         <AgGridReact<WarehouseLocation>
           theme={gridTheme}
           rowData={warehouses}

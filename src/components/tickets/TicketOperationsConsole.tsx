@@ -107,19 +107,19 @@ export function TicketOperationsConsole() {
   );
 
   return (
-    <section className="animate-rise flex min-h-0 flex-1 flex-col gap-4">
+    <section className="animate-rise flex min-h-0 flex-1 flex-col gap-3 sm:gap-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <div className="mb-2 inline-flex items-center gap-2 text-[var(--accent)]">
-            <Ticket className="h-5 w-5" aria-hidden />
-            <span className="text-sm font-medium uppercase tracking-[0.14em]">
+        <div className="min-w-0">
+          <div className="mb-1.5 inline-flex items-center gap-2 text-[var(--accent)] sm:mb-2">
+            <Ticket className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden />
+            <span className="text-[11px] font-medium uppercase tracking-[0.14em] sm:text-sm">
               Ticket queue
             </span>
           </div>
-          <h2 className="font-[family-name:var(--font-fraunces)] text-2xl tracking-tight text-[var(--ink)] sm:text-3xl">
+          <h2 className="font-[family-name:var(--font-fraunces)] text-xl tracking-tight text-[var(--ink)] sm:text-2xl lg:text-3xl">
             Relief demand & ticket operations
           </h2>
-          <p className="mt-1 text-sm text-[var(--ink-muted)]">
+          <p className="mt-1 text-xs text-[var(--ink-muted)] sm:text-sm">
             {`Showing ${queue.tickets.length} tickets across districts.`}
             {isAdminSourcedMode
               ? " Admin-sourced mode: creation limited to agency accounts."
@@ -133,7 +133,7 @@ export function TicketOperationsConsole() {
               type="button"
               onClick={handleCreateClick}
               disabled={roleLoading}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3 py-2 text-xs font-semibold text-white disabled:opacity-60 sm:text-sm"
             >
               <Plus className="h-4 w-4" aria-hidden />
               {isCrowdMode && !isAdmin ? "+ Report Urgent Need" : "Create Ticket"}
@@ -143,32 +143,34 @@ export function TicketOperationsConsole() {
             <button
               type="button"
               onClick={() => setView("table")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium ${
+              aria-label="Table Queue"
+              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium sm:px-3 sm:text-sm ${
                 view === "table"
                   ? "bg-[var(--accent)] text-white"
                   : "text-[var(--ink-muted)]"
               }`}
             >
               <List className="h-4 w-4" aria-hidden />
-              Table Queue
+              <span className="hidden sm:inline">Table Queue</span>
             </button>
             <button
               type="button"
               onClick={() => setView("kanban")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium ${
+              aria-label="Kanban Board"
+              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium sm:px-3 sm:text-sm ${
                 view === "kanban"
                   ? "bg-[var(--accent)] text-white"
                   : "text-[var(--ink-muted)]"
               }`}
             >
               <Columns3 className="h-4 w-4" aria-hidden />
-              Kanban Board
+              <span className="hidden sm:inline">Kanban Board</span>
             </button>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-7">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7">
         <Metric label="Tickets" value={metrics.total} />
         <Metric label="Requested" value={metrics.requested} />
         <Metric label="Assigned" value={metrics.assigned} />
@@ -350,11 +352,11 @@ function Metric({
         : "border-[var(--line)] bg-white/70";
 
   return (
-    <div className={`rounded-xl border px-3 py-2 ${toneClass}`}>
-      <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--ink-muted)]">
+    <div className={`rounded-xl border px-2.5 py-1.5 sm:px-3 sm:py-2 ${toneClass}`}>
+      <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--ink-muted)] sm:text-[11px]">
         {label}
       </p>
-      <p className="text-xl font-semibold text-[var(--ink)]">{value}</p>
+      <p className="text-lg font-semibold text-[var(--ink)] sm:text-xl">{value}</p>
     </div>
   );
 }

@@ -233,7 +233,7 @@ export function NGODashboard({
           No pledges yet. Open the marketplace and pledge help for a village.
         </p>
       ) : (
-        <div className="h-[min(65vh,640px)] overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-2 shadow-[var(--shadow)]">
+        <div className="h-[min(45dvh,360px)] sm:h-[min(65vh,640px)] overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-2 shadow-[var(--shadow)]">
           <AgGridReact<PledgeRow>
             theme={gridTheme}
             rowData={rows}

@@ -201,7 +201,7 @@ export function DashboardTileGrid({
       </div>
 
       <DistrictDashboardMap
-        className="h-[min(58vh,620px)] min-h-[400px] w-full"
+        className="map-stage"
         villages={villages}
         boats={boats}
         highLands={highLands}
@@ -223,8 +223,8 @@ export function DashboardTileGrid({
         sosAlerts={sosTriage.mapSosAlerts}
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="h-[min(48vh,480px)] min-h-[320px]">
+      <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
+        <div className="h-[min(38dvh,280px)] min-h-[220px] sm:h-[min(48vh,480px)] sm:min-h-[280px] lg:min-h-[320px]">
           <TimeCriticalSOSTile
             alerts={sosTriage.alerts}
             selectedSosId={mapFocus?.kind === "SOS" ? mapFocus.id : null}
@@ -232,7 +232,7 @@ export function DashboardTileGrid({
             onRapidDispatch={(sos) => setDispatchSos(sos)}
           />
         </div>
-        <div className="h-[min(48vh,480px)] min-h-[320px]">
+        <div className="h-[min(38dvh,280px)] min-h-[220px] sm:h-[min(48vh,480px)] sm:min-h-[280px] lg:min-h-[320px]">
           <TransportationDemandTile
             requests={dispatch.requests}
             onOpenChat={dispatch.openChat}
@@ -240,9 +240,9 @@ export function DashboardTileGrid({
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">
         <EmergencyDirectoryTile />
-        <div className="h-[min(42vh,420px)] min-h-[280px]">
+        <div className="h-[min(34dvh,240px)] min-h-[200px] sm:h-[min(42vh,420px)] sm:min-h-[240px] lg:min-h-[280px]">
           <KeyOfficialsRosterTile
             officials={officials}
             alertSummary={alertSummary}

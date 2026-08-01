@@ -105,7 +105,7 @@ export function WarehouseModule() {
         />
       ) : (
         <WarehouseFocusMap
-          className="h-[min(70vh,720px)] min-h-[420px]"
+          className="map-stage-tall"
           warehouses={state.warehouses}
           focusedWarehouse={state.focusedWarehouse}
           onSelectWarehouse={state.selectWarehouse}

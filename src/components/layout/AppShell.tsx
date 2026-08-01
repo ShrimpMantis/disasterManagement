@@ -20,9 +20,9 @@ export function AppShell({
   return (
     <AuthGuard allowGuest={allowGuest}>
       <FirestoreBootstrap>
-        <div className="flex min-h-screen w-full">
+        <div className="flex min-h-dvh w-full overflow-x-hidden">
           <AppSidebar />
-          <div className="min-w-0 flex-1">{children}</div>
+          <div className="min-w-0 flex-1 overflow-x-hidden">{children}</div>
         </div>
       </FirestoreBootstrap>
     </AuthGuard>

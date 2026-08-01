@@ -180,7 +180,7 @@ export function PledgeAuditLedger({
               Pledge audit ledger
             </span>
           </div>
-          <h2 className="font-[family-name:var(--font-fraunces)] text-2xl tracking-tight text-[var(--ink)] sm:text-3xl">
+          <h2 className="font-[family-name:var(--font-fraunces)] text-xl tracking-tight text-[var(--ink)] sm:text-2xl lg:text-3xl">
             Resource commitment vs delivery
           </h2>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
@@ -193,8 +193,8 @@ export function PledgeAuditLedger({
         </div>
       </div>
 
-      <div className="min-h-[520px] flex-1 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow)]">
-        <div className="h-[min(72vh,740px)] w-full p-2">
+      <div className="min-h-[280px] flex-1 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow)] sm:min-h-[400px] lg:min-h-[520px]">
+        <div className="h-[min(50dvh,480px)] w-full p-2 sm:h-[min(72vh,740px)]">
           <AgGridReact<PledgeAuditRow>
             theme={gridTheme}
             rowData={rows}

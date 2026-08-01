@@ -28,7 +28,7 @@ export function TotalFundsRaisedTile({ financials }: TotalFundsRaisedTileProps) 
         </h2>
       </div>
 
-      <p className="font-[family-name:var(--font-fraunces)] text-3xl tracking-tight text-[var(--ink)] sm:text-4xl">
+      <p className="font-[family-name:var(--font-fraunces)] text-xl tracking-tight text-[var(--ink)] sm:text-3xl lg:text-4xl">
         {formatINR(financials.totalFundsRaisedINR)}
       </p>
 

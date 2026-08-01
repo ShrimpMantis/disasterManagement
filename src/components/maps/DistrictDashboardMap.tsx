@@ -84,13 +84,13 @@ function MapTypeSwitcher({
   onChange: (mode: MapViewMode) => void;
 }) {
   return (
-    <div className="absolute bottom-3 left-3 z-10 flex gap-1 rounded-xl border border-[var(--line)] bg-white/95 p-1 shadow-[var(--shadow)]">
+    <div className="absolute bottom-2 left-2 z-10 flex max-w-[calc(100%-1rem)] flex-wrap gap-1 rounded-xl border border-[var(--line)] bg-white/95 p-1 shadow-[var(--shadow)] sm:bottom-3 sm:left-3">
       {(["roadmap", "terrain", "satellite"] as MapViewMode[]).map((option) => (
         <button
           key={option}
           type="button"
           onClick={() => onChange(option)}
-          className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold capitalize ${
+          className={`rounded-lg px-2 py-1 text-[10px] font-semibold capitalize sm:px-2.5 sm:py-1.5 sm:text-xs ${
             mode === option
               ? "bg-[var(--accent)] text-white"
               : "text-[var(--ink-muted)] hover:bg-[var(--accent-soft)]"
@@ -442,9 +442,9 @@ function DistrictMapInner({
       />
       <MapTypeSwitcher mode={mapMode} onChange={setMapMode} />
 
-      <div className="pointer-events-none absolute left-3 top-3 rounded-xl border border-[var(--line)] bg-white/95 px-3 py-2 text-xs shadow-[var(--shadow)]">
-        <span className="font-semibold text-[var(--ink)]">District situational map</span>
-        <span className="ml-2 text-[var(--ink-muted)]">
+      <div className="pointer-events-none absolute left-2 top-2 max-w-[calc(100%-5.5rem)] rounded-xl border border-[var(--line)] bg-white/95 px-2 py-1.5 text-[10px] shadow-[var(--shadow)] sm:left-3 sm:top-3 sm:max-w-none sm:px-3 sm:py-2 sm:text-xs">
+        <span className="font-semibold text-[var(--ink)]">District map</span>
+        <span className="ml-1.5 text-[var(--ink-muted)] sm:ml-2">
           {villages.length} villages · {sosState.filter((s) => s.status === "OPEN").length}{" "}
           open SOS
         </span>
@@ -464,7 +464,7 @@ export function DistrictDashboardMap(props: DistrictDashboardMapProps) {
   }
 
   return (
-    <div className={props.className ?? "h-[min(70vh,640px)] w-full"}>
+    <div className={props.className ?? "map-stage-tall"}>
       <APIProvider
         apiKey={apiKey}
         libraries={["marker", "routes", "geometry"]}

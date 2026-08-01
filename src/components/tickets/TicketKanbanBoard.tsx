@@ -77,13 +77,13 @@ export function TicketKanbanBoard({
   }
 
   return (
-    <div className="grid gap-3 xl:grid-cols-4">
+    <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 xl:mx-0 xl:grid xl:grid-cols-4 xl:overflow-visible xl:px-0 xl:pb-0">
       {KANBAN_COLUMNS.map((status) => (
         <section
           key={status}
           onDragOver={(event) => event.preventDefault()}
           onDrop={() => handleDrop(status)}
-          className="min-h-[420px] rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 shadow-[var(--shadow)] backdrop-blur-md"
+          className="min-h-[240px] w-[min(78vw,280px)] shrink-0 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-3 shadow-[var(--shadow)] backdrop-blur-md sm:min-h-[320px] xl:min-h-[420px] xl:w-auto xl:min-w-0"
         >
           <header className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-[var(--ink)]">

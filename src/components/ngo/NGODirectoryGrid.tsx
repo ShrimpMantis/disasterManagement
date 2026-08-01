@@ -318,7 +318,7 @@ export function NGODirectoryGrid({
               Sector directory
             </span>
           </div>
-          <h2 className="font-[family-name:var(--font-fraunces)] text-2xl tracking-tight text-[var(--ink)] sm:text-3xl">
+          <h2 className="font-[family-name:var(--font-fraunces)] text-xl tracking-tight text-[var(--ink)] sm:text-2xl lg:text-3xl">
             NGO & volunteer capability mapping
           </h2>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
@@ -424,8 +424,8 @@ export function NGODirectoryGrid({
       </div>
 
       {viewMode === "grid" ? (
-        <div className="min-h-[480px] flex-1 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow)] backdrop-blur-md">
-          <div className="h-[min(70vh,720px)] w-full p-2">
+        <div className="min-h-[280px] flex-1 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow)] backdrop-blur-md sm:min-h-[400px] lg:min-h-[480px]">
+          <div className="h-[min(50dvh,480px)] w-full p-2 sm:h-[min(70vh,720px)]">
             <AgGridReact<NGODirectoryRow>
               theme={gridTheme}
               rowData={rowData}

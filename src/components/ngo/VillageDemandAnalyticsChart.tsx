@@ -172,7 +172,7 @@ export function VillageDemandAnalyticsChart({
       ) : null}
 
       {!analytics.selectedDistrict ? (
-        <div className="h-[360px] w-full">
+        <div className="h-[240px] w-full sm:h-[360px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={districtChartData}
@@ -269,7 +269,7 @@ export function VillageDemandAnalyticsChart({
             )}
           </div>
 
-          <div className="h-[min(52vh,480px)] w-full">
+          <div className="h-[min(40dvh,300px)] sm:h-[min(52vh,480px)] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 layout="vertical"

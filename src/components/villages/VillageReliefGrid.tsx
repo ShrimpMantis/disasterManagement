@@ -398,7 +398,7 @@ export function VillageReliefGrid() {
     <section className="animate-rise flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="font-[family-name:var(--font-fraunces)] text-2xl tracking-tight text-[var(--ink)] sm:text-3xl">
+          <h2 className="font-[family-name:var(--font-fraunces)] text-xl tracking-tight text-[var(--ink)] sm:text-2xl lg:text-3xl">
             Village relief assessment
           </h2>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
@@ -450,8 +450,8 @@ export function VillageReliefGrid() {
         <p className="text-sm text-[var(--ink-muted)]">Loading village data…</p>
       ) : null}
 
-      <div className="min-h-[480px] flex-1 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow)] backdrop-blur-md">
-        <div className="h-[min(70vh,720px)] w-full p-2">
+      <div className="min-h-[280px] flex-1 overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow)] sm:min-h-[400px] lg:min-h-[480px]">
+        <div className="h-[min(50dvh,480px)] w-full p-2 sm:h-[min(70vh,720px)]">
           <AgGridReact<VillageGridRow>
             theme={gridTheme}
             rowData={rowData}

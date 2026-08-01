@@ -519,7 +519,7 @@ export function TransporterFleetGrid({
         </form>
       ) : null}
 
-      <div className="h-[min(52vh,480px)] w-full p-2">
+      <div className="h-[min(40dvh,300px)] sm:h-[min(52vh,480px)] w-full p-2">
         <AgGridReact<TransporterRecord>
           theme={gridTheme}
           rowData={filtered}

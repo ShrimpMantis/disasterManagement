@@ -179,7 +179,7 @@ export function ReliefInfrastructureMap(props: ReliefInfrastructureMapProps) {
   }
 
   return (
-    <div className={props.className ?? "h-[360px] w-full"}>
+    <div className={props.className ?? "map-stage-compact"}>
       <APIProvider apiKey={apiKey} libraries={MAP_LIBRARIES}>
         <InfraMapInner {...props} />
       </APIProvider>

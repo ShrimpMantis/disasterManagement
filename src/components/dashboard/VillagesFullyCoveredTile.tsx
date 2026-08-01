@@ -39,7 +39,7 @@ export function VillagesFullyCoveredTile({
         </Link>
       </div>
 
-      <p className="font-[family-name:var(--font-fraunces)] text-3xl tracking-tight text-[var(--ink)] sm:text-4xl">
+      <p className="font-[family-name:var(--font-fraunces)] text-xl tracking-tight text-[var(--ink)] sm:text-3xl lg:text-4xl">
         {metrics.fullyCovered}
         <span className="ml-1 text-lg text-[var(--ink-muted)]">
           / {metrics.totalVillages}

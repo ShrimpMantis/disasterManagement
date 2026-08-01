@@ -156,7 +156,7 @@ export function VillageAssetDirectory() {
       ) : null}
 
       <ReliefInfrastructureMap
-        className="h-[min(42vh,420px)] w-full"
+        className="map-stage-compact"
         villages={assets.villages}
         boats={assets.boats}
         highLands={assets.highLands}
@@ -259,7 +259,7 @@ export function VillageAssetDirectory() {
               Showing {filteredSummaries.length} of {assets.summaries.length} villages
             </p>
           </div>
-          <div className="h-[min(60vh,560px)] overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-2 shadow-[var(--shadow)]">
+          <div className="h-[min(42dvh,320px)] sm:h-[min(60vh,560px)] overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-2 shadow-[var(--shadow)]">
             <AgGridReact<VillageAssetSummary>
               theme={gridTheme}
               rowData={filteredSummaries}

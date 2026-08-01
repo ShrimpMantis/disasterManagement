@@ -399,7 +399,7 @@ export function UnmetNeedsMarketplace({
           )}
         </div>
       ) : (
-        <div className="h-[min(65vh,640px)] overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-2 shadow-[var(--shadow)]">
+        <div className="h-[min(45dvh,360px)] sm:h-[min(65vh,640px)] overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-2 shadow-[var(--shadow)]">
           <AgGridReact<MarketplaceRow>
             theme={gridTheme}
             rowData={rows}
